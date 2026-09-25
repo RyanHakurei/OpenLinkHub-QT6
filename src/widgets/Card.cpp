@@ -1,14 +1,21 @@
 #include "widgets/Card.h"
 
+#include <QEvent>
 #include <QPainter>
 #include <QPaintEvent>
+#include <QResizeEvent>
 #include <QStyleOptionGroupBox>
+
+namespace {
+constexpr int CardPadding = 16;
+}
 
 Card::Card(QWidget *parent)
     : QGroupBox(parent)
 {
     setAttribute(Qt::WA_TranslucentBackground);
     setAutoFillBackground(false);
+    updateMargins();
 }
 
 Card::Card(const QString &title, QWidget *parent)
@@ -16,6 +23,30 @@ Card::Card(const QString &title, QWidget *parent)
 {
     setAttribute(Qt::WA_TranslucentBackground);
     setAutoFillBackground(false);
+    updateMargins();
+}
+
+void Card::updateMargins()
+{
+    const int top = title().isEmpty() ? CardPadding : CardPadding + fontMetrics().height() + 8;
+    const QMargins next(CardPadding, top, CardPadding, CardPadding);
+    if (contentsMargins() != next) {
+        setContentsMargins(next);
+    }
+}
+
+void Card::resizeEvent(QResizeEvent *event)
+{
+    QGroupBox::resizeEvent(event);
+    updateMargins();
+}
+
+void Card::changeEvent(QEvent *event)
+{
+    QGroupBox::changeEvent(event);
+    if (event->type() == QEvent::StyleChange || event->type() == QEvent::FontChange) {
+        updateMargins();
+    }
 }
 
 void Card::paintEvent(QPaintEvent *)
@@ -42,8 +73,7 @@ void Card::paintEvent(QPaintEvent *)
     QFont titleFont = font();
     titleFont.setBold(true);
     painter.setFont(titleFont);
-    const QRect labelRect = style()->subControlRect(QStyle::CC_GroupBox, &option, QStyle::SC_GroupBoxLabel, this);
-    painter.drawText(labelRect.isValid() ? labelRect : QRect(12, 4, width() - 24, fontMetrics().height() + 4),
-                     Qt::AlignLeft | Qt::AlignVCenter,
-                     option.text);
+    const QFontMetrics metrics(titleFont);
+    const QRect titleRect(CardPadding, CardPadding, qMax(0, width() - CardPadding * 2), metrics.height());
+    painter.drawText(titleRect, Qt::AlignLeft | Qt::AlignVCenter, metrics.elidedText(option.text, Qt::ElideRight, titleRect.width()));
 }

@@ -34,7 +34,7 @@ inline Card *card(const QString &title, QWidget *parent = nullptr)
     auto *layout = new QFormLayout(box);
     layout->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
     layout->setRowWrapPolicy(QFormLayout::WrapLongRows);
-    layout->setContentsMargins(12, 12, 12, 12);
+    layout->setContentsMargins(0, 0, 0, 0);
     return box;
 }
 
