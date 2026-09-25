@@ -1,6 +1,7 @@
 #pragma once
 
 #include <KXmlGuiWindow>
+#include <QCloseEvent>
 #include <QHash>
 #include <QJsonObject>
 #include <QShowEvent>
@@ -21,6 +22,7 @@ class MacrosPage;
 class LcdPage;
 class ClusterPage;
 class DevicePage;
+class TrayController;
 class QStackedWidget;
 class QSplitter;
 class QTimer;
@@ -37,9 +39,11 @@ public:
 protected:
     void showEvent(QShowEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+    void closeEvent(QCloseEvent *event) override;
 
 private:
     void setupActions();
+    void quit();
     void updateBlur();
     void applyConnectionSettings();
     void configureConnection();
@@ -71,6 +75,8 @@ private:
     QHash<QString, DevicePage *> m_devicePages;
     QHash<QString, int> m_stackIndex;
     QTimer *m_timer;
+    TrayController *m_tray = nullptr;
+    bool m_quitting = false;
     QString m_currentPage = QStringLiteral("dashboard");
     QList<QPair<QString, QString>> m_deviceChoices;
     bool m_showCpu = true;

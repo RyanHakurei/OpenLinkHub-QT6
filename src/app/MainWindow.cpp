@@ -4,6 +4,7 @@
 #include "api/IconCache.h"
 #include "api/JsonUtil.h"
 #include "app/ConnectionDialog.h"
+#include "app/TrayController.h"
 #include "i18n/HubI18n.h"
 #include "pages/ClusterPage.h"
 #include "pages/DashboardPage.h"
@@ -27,8 +28,8 @@
 #include <QJsonArray>
 #include <QLabel>
 #include <QSplitter>
+#include <QCloseEvent>
 #include <QStackedWidget>
-#include <QStatusBar>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QUrl>
@@ -111,7 +112,14 @@ MainWindow::MainWindow(QWidget *parent)
     setMinimumSize(900, 600);
 
     setupActions();
-    setupGUI(Keys | StatusBar | Save | Create, QStringLiteral(":/kxmlgui6/openlinkhub-qt/openlinkhub-qtui.rc"));
+    setupGUI(Keys | Save | Create, QStringLiteral(":/kxmlgui6/openlinkhub-qt/openlinkhub-qtui.rc"));
+    m_tray = new TrayController(m_client, this, this);
+    connect(m_tray, &TrayController::quitRequested, this, &MainWindow::quit);
+    connect(m_tray, &TrayController::deviceChanged, this, [this](const QString &serial) {
+        if (m_devicePages.contains(serial)) {
+            m_devicePages.value(serial)->reload();
+        }
+    });
     if (width() < 1100 || height() < 720) {
         resize(1280, 840);
     }
@@ -130,6 +138,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_settingsPage, &SettingsPage::dashboardChanged, this, &MainWindow::refreshAll);
     connect(m_temperatures, &TemperaturePage::profilesChanged, this, [this]() {
         const QStringList profiles = m_temperatures->visibleProfiles();
+        m_tray->setSpeedProfiles(profiles);
         for (DevicePage *page : std::as_const(m_devicePages)) {
             page->setSpeedProfiles(profiles);
         }
@@ -178,6 +187,22 @@ void MainWindow::resizeEvent(QResizeEvent *event)
     updateBlur();
 }
 
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    if (!m_quitting && m_tray && m_tray->available()) {
+        hide();
+        event->ignore();
+        return;
+    }
+    KXmlGuiWindow::closeEvent(event);
+}
+
+void MainWindow::quit()
+{
+    m_quitting = true;
+    qApp->quit();
+}
+
 void MainWindow::updateBlur()
 {
     QWindow *window = windowHandle();
@@ -192,7 +217,7 @@ void MainWindow::updateBlur()
 
 void MainWindow::setupActions()
 {
-    KStandardAction::quit(this, &QWidget::close, actionCollection());
+    KStandardAction::quit(this, &MainWindow::quit, actionCollection());
     KStandardAction::preferences(this, &MainWindow::configureConnection, actionCollection());
 
     auto *refresh = actionCollection()->addAction(QStringLiteral("file_refresh"), this, &MainWindow::refreshAll);
@@ -312,7 +337,7 @@ void MainWindow::refreshDevices()
             }
             m_sidebar->setDevices(sidebar);
             m_dashboard->setDeviceChoices(m_deviceChoices);
-            statusBar()->showMessage(i18np("%1 device", "%1 devices", sidebar.size()), 2000);
+            m_tray->setDevices(m_deviceChoices);
         });
     });
 
