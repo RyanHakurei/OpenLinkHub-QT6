@@ -21,7 +21,6 @@ private:
     void saveArc();
     void saveDoubleArc();
     void saveAnimation();
-    QWidget *uploadCard();
     QWidget *arcCard(const QJsonObject &profile);
     QWidget *doubleArcCard(const QJsonObject &profile);
     QWidget *animationCard(const QJsonObject &profile);

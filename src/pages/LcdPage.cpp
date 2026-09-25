@@ -70,7 +70,6 @@ void LcdPage::reload()
 void LcdPage::rebuild()
 {
     m_grid->clear();
-    m_grid->addCard(uploadCard());
 
     const QJsonObject arc = LcdData::load(QStringLiteral("arc.json"));
     const QJsonObject doubleArc = LcdData::load(QStringLiteral("double-arc.json"));
@@ -92,19 +91,6 @@ void LcdPage::rebuild()
     if (!animation.isEmpty()) {
         m_grid->addCard(animationCard(animation));
     }
-}
-
-QWidget *LcdPage::uploadCard()
-{
-    auto *box = Ui::card(m_i18n->t("txtUploadImage", "Upload image"));
-    auto *form = Ui::form(box);
-    auto *hint = new QLabel(tr("GIF, JPEG, WebP or BMP. Maximum 5 MB."), box);
-    hint->setWordWrap(true);
-    auto *button = new QPushButton(m_i18n->t("txtUpload", "Upload"), box);
-    form->addRow(hint);
-    form->addRow(button);
-    connect(button, &QPushButton::clicked, this, &LcdPage::upload);
-    return box;
 }
 
 QWidget *LcdPage::arcCard(const QJsonObject &profile)
@@ -304,6 +290,18 @@ QWidget *LcdPage::animationCard(const QJsonObject &profile)
     auto *save = new QPushButton(m_i18n->t("txtSaveProfile", "Save profile"), box);
     connect(save, &QPushButton::clicked, this, &LcdPage::saveAnimation);
     form->addRow(save);
+
+    auto *uploadHeading = new QLabel(m_i18n->t("txtUploadImage", "Upload image"), box);
+    QFont uploadFont = uploadHeading->font();
+    uploadFont.setBold(true);
+    uploadHeading->setFont(uploadFont);
+    auto *hint = new QLabel(tr("GIF, JPEG, WebP or BMP. Maximum 5 MB."), box);
+    hint->setWordWrap(true);
+    auto *upload = new QPushButton(m_i18n->t("txtUpload", "Upload"), box);
+    form->addRow(uploadHeading);
+    form->addRow(hint);
+    form->addRow(upload);
+    connect(upload, &QPushButton::clicked, this, &LcdPage::upload);
     return box;
 }
 
