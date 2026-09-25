@@ -94,7 +94,6 @@ void Sidebar::setToolLabels(const QString &lcd, const QString &macros, const QSt
         {QStringLiteral("rgb"), rgb, QStringLiteral("color-management")},
         {QStringLiteral("temperature"), temperature, QStringLiteral("temperature-normal")},
         {QStringLiteral("settings"), settings, QStringLiteral("settings-configure")},
-        {QStringLiteral("github"), QStringLiteral("GitHub"), QStringLiteral("folder-git")},
     };
 
     if (m_nav->count() == 0) {

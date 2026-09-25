@@ -23,7 +23,6 @@
 #include <KMessageWidget>
 #include <KStandardAction>
 #include <KWindowEffects>
-#include <QDesktopServices>
 #include <QIcon>
 #include <QJsonArray>
 #include <QLabel>
@@ -32,7 +31,6 @@
 #include <QStackedWidget>
 #include <QTimer>
 #include <QVBoxLayout>
-#include <QUrl>
 #include <QWindow>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -245,13 +243,8 @@ void MainWindow::configureConnection()
 
 void MainWindow::showPage(const QString &pageId)
 {
-    if (pageId == QLatin1String("github")) {
-        QDesktopServices::openUrl(QUrl(QStringLiteral("https://github.com/jurkovic-nikola/OpenLinkHub")));
-        m_sidebar->selectPage(m_currentPage);
-        return;
-    }
-
     m_currentPage = pageId;
+    updateTemperatureBar();
     if (pageId.startsWith(QLatin1String("device:"))) {
         const QString serial = pageId.mid(7);
         if (!m_devicePages.contains(serial)) {
@@ -349,7 +342,8 @@ void MainWindow::refreshDevices()
         m_showCpu = Json::boolean(dash, "showCpu", true);
         m_showGpu = Json::boolean(dash, "showGpu", true);
         m_showDisk = Json::boolean(dash, "showDisk", true);
-        m_temperatureBar->setVisible(Json::boolean(dash, "temperatureBar", true));
+        m_showTemperatureBar = Json::boolean(dash, "temperatureBar", true);
+        updateTemperatureBar();
         m_dashboard->setShowLabels(Json::boolean(dash, "showLabels", true));
         m_sidebar->setTitle(i18n("OpenLinkHub"));
         setWindowTitle(i18n("OpenLinkHub"));
@@ -402,6 +396,11 @@ void MainWindow::refreshBattery()
             m_sidebar->setBattery(it.key(), Json::integer(battery, "Level", -1));
         }
     });
+}
+
+void MainWindow::updateTemperatureBar()
+{
+    m_temperatureBar->setVisible(m_showTemperatureBar && m_currentPage == QLatin1String("dashboard"));
 }
 
 void MainWindow::updateConnectionUi(bool reachable)

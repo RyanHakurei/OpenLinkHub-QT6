@@ -53,6 +53,7 @@ private:
     void refreshTelemetry();
     void refreshBattery();
     void updateConnectionUi(bool reachable);
+    void updateTemperatureBar();
 
     AppSettings m_settings;
     ApiClient *m_client;
@@ -82,4 +83,5 @@ private:
     bool m_showCpu = true;
     bool m_showGpu = true;
     bool m_showDisk = true;
+    bool m_showTemperatureBar = true;
 };
