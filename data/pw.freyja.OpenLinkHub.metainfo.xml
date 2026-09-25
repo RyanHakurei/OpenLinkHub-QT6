@@ -19,6 +19,10 @@
       This project is not affiliated with, endorsed by, or part of the
       official OpenLinkHub project.
     </p>
+    <p>
+      Official website: <a href="https://openlinkhub.dev">openlinkhub.dev</a>.
+      Official source: <a href="https://github.com/jurkovic-nikola/OpenLinkHub">github.com/jurkovic-nikola/OpenLinkHub</a>.
+    </p>
   </description>
   <url type="homepage">https://github.com/RyanHakurei/OpenLinkHub-QT6</url>
   <launchable type="desktop-id">pw.freyja.OpenLinkHub.desktop</launchable>

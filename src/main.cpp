@@ -25,7 +25,12 @@ int main(int argc, char **argv)
                      KAboutLicense::GPL_V3,
                      i18n("© 2026 Ryan"),
                      i18n("This is an independent companion to OpenLinkHub, the device daemon by Nikola. "
-                          "It is not affiliated with, endorsed by, or part of the official OpenLinkHub project."),
+                          "It is not affiliated with, endorsed by, or part of the official OpenLinkHub project.\n"
+                          "\n"
+                          "Official website: <a href=\"%1\">%1</a>\n"
+                          "Official source: <a href=\"%2\">%2</a>",
+                          QStringLiteral("https://openlinkhub.dev"),
+                          QStringLiteral("https://github.com/jurkovic-nikola/OpenLinkHub")),
                      QStringLiteral("https://github.com/RyanHakurei/OpenLinkHub-QT6"),
                      QStringLiteral("https://github.com/RyanHakurei/OpenLinkHub-QT6/issues"));
     about.addAuthor(i18n("Ryan"),
