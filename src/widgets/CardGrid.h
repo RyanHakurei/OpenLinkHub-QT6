@@ -14,7 +14,7 @@ public:
 
     void clear();
     void takeAfter(int keep);
-    void addCard(QWidget *card);
+    void addCard(QWidget *card, int columnSpan = 1);
     void setMinimumCardWidth(int width);
     int count() const;
 
@@ -28,11 +28,13 @@ protected:
 
 private:
     int columnsForWidth(int width) const;
+    int rowsForWidth(int width) const;
     int rowHeight() const;
     void relayout();
 
     QGridLayout *m_layout;
     QList<QWidget *> m_cards;
+    QList<int> m_spans;
     int m_minCardWidth = 260;
     int m_columns = 0;
 };

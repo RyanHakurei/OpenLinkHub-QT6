@@ -48,13 +48,38 @@ bool CardGrid::hasHeightForWidth() const
     return true;
 }
 
-int CardGrid::heightForWidth(int width) const
+int CardGrid::rowsForWidth(int width) const
 {
-    if (m_cards.isEmpty()) {
+    const int columns = columnsForWidth(width);
+    if (m_cards.isEmpty() || columns <= 0) {
         return 0;
     }
-    const int columns = columnsForWidth(width);
-    const int rows = (m_cards.size() + columns - 1) / columns;
+    int row = 0;
+    int column = 0;
+    for (int span : m_spans) {
+        span = qBound(1, span, columns);
+        if (column > 0 && column + span > columns) {
+            ++row;
+            column = 0;
+        }
+        column += span;
+        if (column >= columns) {
+            ++row;
+            column = 0;
+        }
+    }
+    if (column > 0) {
+        ++row;
+    }
+    return row;
+}
+
+int CardGrid::heightForWidth(int width) const
+{
+    const int rows = rowsForWidth(width);
+    if (rows <= 0) {
+        return 0;
+    }
     return rows * rowHeight() + (rows - 1) * m_layout->spacing();
 }
 
@@ -79,6 +104,7 @@ void CardGrid::takeAfter(int keep)
     keep = qBound(0, keep, m_cards.size());
     while (m_cards.size() > keep) {
         QWidget *card = m_cards.takeLast();
+        m_spans.removeLast();
         m_layout->removeWidget(card);
         card->deleteLater();
     }
@@ -86,12 +112,13 @@ void CardGrid::takeAfter(int keep)
     relayout();
 }
 
-void CardGrid::addCard(QWidget *card)
+void CardGrid::addCard(QWidget *card, int columnSpan)
 {
     card->setParent(this);
     card->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     card->setMinimumWidth(0);
     m_cards.append(card);
+    m_spans.append(qMax(1, columnSpan));
     m_columns = 0;
     relayout();
 }
@@ -120,10 +147,20 @@ void CardGrid::relayout()
         m_layout->setColumnMinimumWidth(column, 0);
     }
 
-    int index = 0;
-    for (QWidget *card : std::as_const(m_cards)) {
-        m_layout->addWidget(card, index / columns, index % columns);
-        ++index;
+    int row = 0;
+    int column = 0;
+    for (int i = 0; i < m_cards.size(); ++i) {
+        const int span = qBound(1, m_spans.at(i), columns);
+        if (column > 0 && column + span > columns) {
+            ++row;
+            column = 0;
+        }
+        m_layout->addWidget(m_cards.at(i), row, column, 1, span);
+        column += span;
+        if (column >= columns) {
+            ++row;
+            column = 0;
+        }
     }
     updateGeometry();
 }

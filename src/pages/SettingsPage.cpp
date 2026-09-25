@@ -233,7 +233,7 @@ SettingsPage::SettingsPage(ApiClient *client, HubI18n *i18n, QWidget *parent)
     grid->addCard(scheduler);
     grid->addCard(sensors);
     grid->addCard(daemon);
-    grid->addCard(supported);
+    grid->addCard(supported, 2);
     pageLayout->addWidget(Ui::scrollWrap(grid));
 }
 
