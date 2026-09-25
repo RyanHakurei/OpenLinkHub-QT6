@@ -17,3 +17,10 @@ ui_*.h
 compile_commands.json
 .clangd/
 .cache
+
+# makepkg output for dist/Arch
+/dist/Arch/src/
+/dist/Arch/pkg/
+/dist/Arch/OpenLinkHub-QT6/
+/dist/Arch/*.pkg.tar.*
+/dist/Arch/*.log

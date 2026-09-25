@@ -1,0 +1,64 @@
+# Maintainer: Ryan <ryan@freyja.pw>
+pkgname=openlinkhub-qt-git
+pkgver=0.1.0.r6.g0033929
+pkgrel=1
+pkgdesc='Native KDE frontend for the OpenLinkHub daemon'
+arch=('x86_64')
+url='https://github.com/RyanHakurei/OpenLinkHub-QT6'
+license=('GPL-3.0-or-later')
+depends=(
+  'gcc-libs'
+  'glibc'
+  'kcolorscheme'
+  'kconfig'
+  'kconfigwidgets'
+  'kcoreaddons'
+  'kcrash'
+  'kguiaddons'
+  'ki18n'
+  'kiconthemes'
+  'ksystemstats'
+  'kwidgetsaddons'
+  'kwindowsystem'
+  'kxmlgui'
+  'libksysguard'
+  'qt6-base'
+  'qt6-svg'
+)
+makedepends=(
+  'cmake'
+  'extra-cmake-modules'
+  'git'
+  'ninja'
+)
+optdepends=(
+  'openlinkhub: local daemon for Corsair devices'
+)
+provides=("${pkgname%-git}")
+conflicts=("${pkgname%-git}")
+install=openlinkhub-qt.install
+source=('git+https://github.com/RyanHakurei/OpenLinkHub-QT6.git')
+sha256sums=('SKIP')
+
+pkgver() {
+  cd OpenLinkHub-QT6
+  if desc=$(git describe --long --tags --abbrev=7 2>/dev/null); then
+    printf '%s\n' "${desc#v}" | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
+  else
+    printf '0.1.0.r%s.g%s\n' "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+  fi
+}
+
+build() {
+  cmake -B build -S OpenLinkHub-QT6 -G Ninja \
+    -DCMAKE_BUILD_TYPE=None \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DKDE_INSTALL_LIBDIR=lib \
+    -DBUILD_TESTING=OFF \
+    -Wno-author
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}

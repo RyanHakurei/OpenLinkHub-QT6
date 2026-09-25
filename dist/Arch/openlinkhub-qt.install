@@ -1,0 +1,27 @@
+post_install() {
+  cat <<EOF
+Reload user units so the sensors service is visible:
+
+  systemctl --user daemon-reload
+
+Start it from OpenLinkHub settings, or with:
+
+  systemctl --user enable --now openlinkhub-sensors.service
+
+Restart System Monitor's sensor service once so the new plugin loads:
+
+  systemctl --user restart plasma-ksystemstats.service
+EOF
+}
+
+post_upgrade() {
+  post_install
+}
+
+post_remove() {
+  cat <<EOF
+If the sensors service was enabled, remove the leftover user unit:
+
+  systemctl --user disable --now openlinkhub-sensors.service
+EOF
+}
