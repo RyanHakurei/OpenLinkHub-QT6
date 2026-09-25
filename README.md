@@ -13,6 +13,7 @@ your Plasma theme and Kvantum style.
 - Qt 6.6+ (Widgets, Network, Svg)
 - KDE Frameworks 6: CoreAddons, I18n, XmlGui, Config, ConfigWidgets, WidgetsAddons, IconThemes, ColorScheme, Crash, GuiAddons
 - extra-cmake-modules
+- libksysguard / ksystemstats (for System Monitor sensors)
 
 ## Build
 
@@ -36,6 +37,23 @@ cmake --install build
 
 Device control still happens in the OpenLinkHub daemon. This app is a frontend only (`frontend: false` in OpenLinkHub’s
 `config.json` can hide the web UI if you only want this client).
+
+## KDE System Monitor sensors
+
+`openlinkhub-sensorsd` is a systemd user service that polls OpenLinkHub and publishes each fan RPM, pump RPM, pump
+temperature, PSU temperature, and PSU power rail (voltage, current, and wattage separately) as hardware sensors for
+KDE System Monitor.
+
+After install:
+
+```bash
+systemctl --user daemon-reload
+```
+
+Then in the app under **Settings → System Monitor sensors**, start the collector and optionally enable it at login.
+Use **Reload System Monitor sensors** once after installing the plugin so `ksystemstats` picks it up.
+
+In System Monitor: Edit Page → Add Sensor… → OpenLinkHub.
 
 ## Theme
 

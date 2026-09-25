@@ -10,6 +10,8 @@ class QTableWidget;
 class KColorButton;
 class QTimeEdit;
 class QLabel;
+class QPushButton;
+class SensorService;
 
 class SettingsPage : public QWidget
 {
@@ -28,6 +30,7 @@ private:
     void saveDashboard();
     void saveSupported();
     void saveScheduler();
+    void refreshSensorService();
 
     ApiClient *m_client;
     HubI18n *m_i18n;
@@ -50,4 +53,9 @@ private:
     QTimeEdit *m_rgbOffTime;
     QTimeEdit *m_rgbOnTime;
     QTableWidget *m_supported;
+    SensorService *m_sensorService = nullptr;
+    QLabel *m_sensorStatus = nullptr;
+    QCheckBox *m_sensorEnabled = nullptr;
+    QPushButton *m_sensorStart = nullptr;
+    QPushButton *m_sensorStop = nullptr;
 };

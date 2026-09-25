@@ -25,7 +25,10 @@ find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS
     Network
     Svg
     SvgWidgets
+    DBus
 )
+
+find_package(KSysGuard REQUIRED)
 
 find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS
     CoreAddons
@@ -65,6 +68,7 @@ add_executable(openlinkhub-qt
     src/pages/MacrosPage.cpp
     src/pages/LcdPage.cpp
     src/pages/ClusterPage.cpp
+    src/app/SensorService.cpp
 )
 
 target_include_directories(openlinkhub-qt PRIVATE
@@ -79,6 +83,7 @@ target_link_libraries(openlinkhub-qt
     Qt6::Network
     Qt6::Svg
     Qt6::SvgWidgets
+    Qt6::DBus
     KF6::CoreAddons
     KF6::I18n
     KF6::XmlGui
@@ -94,7 +99,47 @@ target_link_libraries(openlinkhub-qt
 
 target_sources(openlinkhub-qt PRIVATE src/openlinkhub-qt.qrc)
 
+add_executable(openlinkhub-sensorsd
+    src/sensors/sensorsd.cpp
+    src/sensors/SensorSnapshot.cpp
+    src/api/ApiClient.cpp
+    src/app/AppSettings.cpp
+)
+
+target_include_directories(openlinkhub-sensorsd PRIVATE src)
+
+target_link_libraries(openlinkhub-sensorsd
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Network
+    KF6::ConfigCore
+)
+
+add_library(ksystemstats_plugin_openlinkhub MODULE
+    src/sensors/OpenLinkHubStatsPlugin.cpp
+    src/sensors/SensorSnapshot.cpp
+)
+
+target_include_directories(ksystemstats_plugin_openlinkhub PRIVATE src)
+
+target_link_libraries(ksystemstats_plugin_openlinkhub
+    Qt6::Core
+    Qt6::Gui
+    KF6::CoreAddons
+    KF6::I18n
+    KSysGuard::SystemStats
+)
+
+configure_file(
+    data/openlinkhub-sensors.service.in
+    ${CMAKE_CURRENT_BINARY_DIR}/openlinkhub-sensors.service
+    @ONLY
+)
+
 install(TARGETS openlinkhub-qt ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
+install(TARGETS openlinkhub-sensorsd ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
+install(TARGETS ksystemstats_plugin_openlinkhub DESTINATION ${KDE_INSTALL_PLUGINDIR}/ksystemstats)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/openlinkhub-sensors.service DESTINATION ${KDE_INSTALL_SYSTEMDUSERUNITDIR})
 install(PROGRAMS data/pw.freyja.OpenLinkHub.desktop DESTINATION ${KDE_INSTALL_APPDIR})
 install(FILES data/pw.freyja.OpenLinkHub.metainfo.xml DESTINATION ${KDE_INSTALL_METAINFODIR})
 

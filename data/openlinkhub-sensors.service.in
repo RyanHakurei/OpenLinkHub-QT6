@@ -1,0 +1,14 @@
+[Unit]
+Description=OpenLinkHub sensors for KDE System Monitor
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/openlinkhub-sensorsd
+Restart=on-failure
+RestartSec=2
+Slice=background.slice
+
+[Install]
+WantedBy=default.target

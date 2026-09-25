@@ -2,6 +2,7 @@
 
 #include "api/ApiClient.h"
 #include "api/JsonUtil.h"
+#include "app/SensorService.h"
 #include "i18n/HubI18n.h"
 #include "widgets/CardGrid.h"
 #include "widgets/UiHelpers.h"
@@ -139,6 +140,46 @@ SettingsPage::SettingsPage(ApiClient *client, HubI18n *i18n, QWidget *parent)
     schedForm->addRow(QString(), saveSched);
     connect(saveSched, &QPushButton::clicked, this, &SettingsPage::saveScheduler);
 
+    m_sensorService = new SensorService(this);
+    auto *sensors = Ui::card(tr("System Monitor sensors"));
+    auto *sensorForm = Ui::form(sensors);
+    m_sensorStatus = new QLabel(sensors);
+    m_sensorEnabled = new QCheckBox(sensors);
+    m_sensorStart = new QPushButton(tr("Start"), sensors);
+    m_sensorStop = new QPushButton(tr("Stop"), sensors);
+    auto *restartStats = new QPushButton(tr("Reload System Monitor sensors"), sensors);
+    auto *sensorButtons = new QWidget(sensors);
+    auto *sensorButtonLayout = new QHBoxLayout(sensorButtons);
+    sensorButtonLayout->setContentsMargins(0, 0, 0, 0);
+    sensorButtonLayout->addWidget(m_sensorStart);
+    sensorButtonLayout->addWidget(m_sensorStop);
+    sensorForm->addRow(tr("Collector"), m_sensorStatus);
+    sensorForm->addRow(tr("Start at login"), m_sensorEnabled);
+    sensorForm->addRow(sensorButtons);
+    sensorForm->addRow(restartStats);
+    auto *sensorHint = new QLabel(tr("Publishes fan, pump, and PSU sensors to KDE System Monitor. Install the app, then start the collector. Each rail voltage, current, and power is a separate sensor."), sensors);
+    sensorHint->setWordWrap(true);
+    sensorForm->addRow(sensorHint);
+    connect(m_sensorStart, &QPushButton::clicked, this, [this]() {
+        m_sensorService->start();
+        refreshSensorService();
+    });
+    connect(m_sensorStop, &QPushButton::clicked, this, [this]() {
+        m_sensorService->stop();
+        refreshSensorService();
+    });
+    connect(m_sensorEnabled, &QCheckBox::toggled, this, [this](bool enabled) {
+        const QSignalBlocker blocker(m_sensorEnabled);
+        m_sensorService->setEnabled(enabled);
+        refreshSensorService();
+    });
+    connect(restartStats, &QPushButton::clicked, this, [this]() {
+        m_sensorService->restartSystemMonitor();
+        refreshSensorService();
+    });
+    connect(m_sensorService, &SensorService::changed, this, &SettingsPage::refreshSensorService);
+    refreshSensorService();
+
     auto *supported = Ui::card(m_i18n->t("txtSupportedDevices", "Supported devices"));
     auto *supportedLayout = new QVBoxLayout;
     m_supported = new QTableWidget(0, 3, supported);
@@ -159,6 +200,7 @@ SettingsPage::SettingsPage(ApiClient *client, HubI18n *i18n, QWidget *parent)
     grid->addCard(dash);
     grid->addCard(backup);
     grid->addCard(scheduler);
+    grid->addCard(sensors);
     grid->addCard(supported);
     pageLayout->addWidget(Ui::scrollWrap(grid));
 }
@@ -167,6 +209,22 @@ void SettingsPage::reload()
 {
     loadDashboard();
     loadSupportedDevices();
+    if (m_sensorService) {
+        m_sensorService->refresh();
+    }
+}
+
+void SettingsPage::refreshSensorService()
+{
+    if (!m_sensorService || !m_sensorStatus) {
+        return;
+    }
+    const QSignalBlocker blocker(m_sensorEnabled);
+    m_sensorEnabled->setChecked(m_sensorService->isEnabled());
+    m_sensorStart->setEnabled(!m_sensorService->isRunning());
+    m_sensorStop->setEnabled(m_sensorService->isRunning());
+    m_sensorStatus->setText(m_sensorService->isRunning() ? tr("Running (%1)").arg(m_sensorService->statusText())
+                                                         : tr("Stopped (%1)").arg(m_sensorService->statusText()));
 }
 
 void SettingsPage::loadDashboard()
