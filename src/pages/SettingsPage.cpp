@@ -10,6 +10,7 @@
 #include <KColorButton>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDir>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -19,12 +20,14 @@
 #include <QHttpMultiPart>
 #include <QHttpPart>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
 #include <QNetworkRequest>
 #include <QPushButton>
 #include <QSet>
 #include <QTableWidget>
+#include <QTime>
 #include <QTimeEdit>
 #include <QVBoxLayout>
 
@@ -209,8 +212,46 @@ void SettingsPage::reload()
 {
     loadDashboard();
     loadSupportedDevices();
+    loadScheduler();
     if (m_sensorService) {
         m_sensorService->refresh();
+    }
+}
+
+void SettingsPage::loadScheduler()
+{
+    const QStringList paths{
+        QStringLiteral("/var/lib/openlinkhub/database/scheduler.json"),
+        QStringLiteral("/opt/OpenLinkHub/database/scheduler.json"),
+        QDir::homePath() + QStringLiteral("/.local/share/openlinkhub/database/scheduler.json"),
+    };
+    QJsonObject data;
+    for (const QString &path : paths) {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly)) {
+            continue;
+        }
+        data = QJsonDocument::fromJson(file.readAll()).object();
+        if (!data.isEmpty()) {
+            break;
+        }
+    }
+    if (data.isEmpty()) {
+        return;
+    }
+
+    const QSignalBlocker rgbBlocker(m_rgbControl);
+    const QSignalBlocker lcdBlocker(m_lcdControl);
+    m_rgbControl->setChecked(Json::boolean(data, "rgbControl"));
+    m_lcdControl->setChecked(Json::boolean(data, "lcdControl"));
+
+    const QTime off = QTime::fromString(Json::str(data, "rgbOff"), QStringLiteral("HH:mm"));
+    const QTime on = QTime::fromString(Json::str(data, "rgbOn"), QStringLiteral("HH:mm"));
+    if (off.isValid()) {
+        m_rgbOffTime->setTime(off);
+    }
+    if (on.isValid()) {
+        m_rgbOnTime->setTime(on);
     }
 }
 

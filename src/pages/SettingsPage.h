@@ -30,6 +30,7 @@ private:
     void saveDashboard();
     void saveSupported();
     void saveScheduler();
+    void loadScheduler();
     void refreshSensorService();
 
     ApiClient *m_client;
