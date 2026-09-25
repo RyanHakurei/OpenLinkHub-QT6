@@ -5,4 +5,7 @@
     <qresource prefix="/kxmlgui5/openlinkhub-qt">
         <file alias="openlinkhub-qtui.rc">openlinkhub-qtui.rc</file>
     </qresource>
+    <qresource prefix="/icons">
+        <file alias="openlinkhub-qt-symbolic.svg">../icons/sc-apps-openlinkhub-qt-symbolic.svg</file>
+    </qresource>
 </RCC>

@@ -8,9 +8,38 @@
 #include <QApplication>
 #include <QIcon>
 #include <QMenu>
+#include <QPainter>
+#include <QPixmap>
+#include <QSvgRenderer>
 #include <QSystemTrayIcon>
 
 #include <memory>
+
+namespace {
+
+// Plasma's tray looks up a themed icon by name and will substitute the color
+// Papirus icon for openlinkhub-qt-symbolic. A pixmap-only icon has no name,
+// so the white artwork is what actually gets shown.
+QIcon whiteTrayIcon()
+{
+    QSvgRenderer renderer(QStringLiteral(":/icons/openlinkhub-qt-symbolic.svg"));
+    QIcon icon;
+    if (!renderer.isValid()) {
+        return icon;
+    }
+    // Do not set a device pixel ratio. Plasma's tray uses the pixmap width as
+    // the image width and clips a scaled pixmap down to its left edge.
+    for (const int size : {16, 22, 24, 32, 48, 64, 128, 256}) {
+        QPixmap pixmap(size, size);
+        pixmap.fill(Qt::transparent);
+        QPainter painter(&pixmap);
+        renderer.render(&painter);
+        icon.addPixmap(pixmap);
+    }
+    return icon;
+}
+
+} // namespace
 
 TrayController::TrayController(ApiClient *client, QWidget *window, QObject *parent)
     : QObject(parent)
@@ -23,9 +52,9 @@ TrayController::TrayController(ApiClient *client, QWidget *window, QObject *pare
 
     m_menu = new QMenu(window);
     m_tray = new QSystemTrayIcon(window);
-    QIcon icon = QIcon::fromTheme(QStringLiteral("openlinkhub-qt-symbolic"));
+    QIcon icon = whiteTrayIcon();
     if (icon.isNull()) {
-        icon = QIcon::fromTheme(QStringLiteral("openlinkhub-qt"), QIcon::fromTheme(QStringLiteral("input-gaming")));
+        icon = QIcon::fromTheme(QStringLiteral("openlinkhub-qt-symbolic"));
     }
     m_tray->setIcon(icon);
     m_tray->setToolTip(tr("OpenLinkHub"));
