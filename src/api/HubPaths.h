@@ -72,4 +72,13 @@ inline QString schedulerFile()
     return dir + QStringLiteral("/database/scheduler.json");
 }
 
+inline QString profileFile(const QString &serial)
+{
+    const QString dir = configDir();
+    if (dir.isEmpty() || serial.isEmpty()) {
+        return {};
+    }
+    return dir + QStringLiteral("/database/profiles/") + serial + QStringLiteral(".json");
+}
+
 } // namespace HubPaths

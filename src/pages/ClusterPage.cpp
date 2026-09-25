@@ -1,15 +1,20 @@
 #include "pages/ClusterPage.h"
 
 #include "api/ApiClient.h"
+#include "api/HubPaths.h"
 #include "api/JsonUtil.h"
 #include "i18n/HubI18n.h"
 #include "widgets/CardGrid.h"
 #include "widgets/UiHelpers.h"
 
 #include <QComboBox>
+#include <QFile>
 #include <QGroupBox>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
+#include <QSignalBlocker>
 #include <QSlider>
 #include <QVBoxLayout>
 
@@ -24,14 +29,70 @@ ClusterPage::ClusterPage(ApiClient *client, HubI18n *i18n, QWidget *parent)
     layout->addWidget(Ui::scrollWrap(m_grid));
 }
 
+namespace {
+
+// The daemon cannot JSON-encode the live cluster object, so /api/devices/cluster
+// comes back empty. These are the modes cluster.Init registers.
+QStringList clusterRgbModes()
+{
+    return {
+        QStringLiteral("circle"),
+        QStringLiteral("circleshift"),
+        QStringLiteral("colorpulse"),
+        QStringLiteral("colorshift"),
+        QStringLiteral("colorwarp"),
+        QStringLiteral("cpu-temperature"),
+        QStringLiteral("flickering"),
+        QStringLiteral("gpu-temperature"),
+        QStringLiteral("gradient"),
+        QStringLiteral("marquee"),
+        QStringLiteral("nebula"),
+        QStringLiteral("rain"),
+        QStringLiteral("rainbow"),
+        QStringLiteral("pastelrainbow"),
+        QStringLiteral("rotator"),
+        QStringLiteral("sequential"),
+        QStringLiteral("spinner"),
+        QStringLiteral("spiralrainbow"),
+        QStringLiteral("pastelspiralrainbow"),
+        QStringLiteral("static"),
+        QStringLiteral("storm"),
+        QStringLiteral("visor"),
+        QStringLiteral("watercolor"),
+        QStringLiteral("wave"),
+    };
+}
+
+QJsonObject clusterProfile()
+{
+    const QString path = HubPaths::profileFile(QStringLiteral("cluster"));
+    QFile file(path);
+    if (path.isEmpty() || !file.open(QIODevice::ReadOnly)) {
+        return {};
+    }
+    const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+    return document.isObject() ? document.object() : QJsonObject{};
+}
+
+} // namespace
+
 void ClusterPage::reload()
 {
-    m_client->get(QStringLiteral("/api/devices/cluster"), [this](const QJsonObject &json, const QString &error) {
-        if (!error.isEmpty()) {
-            return;
-        }
-        rebuild(Json::object(json, "device"));
-    });
+    const QJsonObject profile = clusterProfile();
+    QJsonObject device;
+    device.insert(QStringLiteral("product"), QStringLiteral("Cluster"));
+    device.insert(QStringLiteral("DeviceProfile"), profile);
+    QJsonArray modes;
+    const QString current = Json::str(profile, "RGBProfile");
+    QStringList names = clusterRgbModes();
+    if (!current.isEmpty() && !names.contains(current)) {
+        names.prepend(current);
+    }
+    for (const QString &mode : names) {
+        modes.append(mode);
+    }
+    device.insert(QStringLiteral("RGBModes"), modes);
+    rebuild(device);
 }
 
 void ClusterPage::rebuild(const QJsonObject &device)
@@ -57,8 +118,16 @@ void ClusterPage::rebuild(const QJsonObject &device)
     const QStringList modes = Json::stringList(device.value(QStringLiteral("RGBModes")));
     auto *combo = new QComboBox(box);
     combo->addItem(tr("None"), QString());
-    for (const QString &mode : modes) {
-        combo->addItem(mode, mode);
+    {
+        const QSignalBlocker blocker(combo);
+        for (const QString &mode : modes) {
+            combo->addItem(mode, mode);
+        }
+        const QString current = Json::str(profile, "RGBProfile");
+        const int index = combo->findData(current);
+        if (index >= 0) {
+            combo->setCurrentIndex(index);
+        }
     }
     connect(combo, &QComboBox::currentIndexChanged, this, [this, combo]() {
         const QString profileName = combo->currentData().toString();
