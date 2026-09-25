@@ -11,6 +11,7 @@
 #include <KColorButton>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QFont>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QJsonObject>
@@ -509,77 +510,84 @@ void DevicePage::addHeadsetCards(const QJsonObject &device)
         m_grid->addCard(box);
     }
 
-    if (profile.contains(QLatin1String("SideTone")) || profile.contains(QLatin1String("SideToneValue"))) {
-        auto *box = Ui::card(m_i18n->t("txtSidetone", "Sidetone"));
+    const bool hasSidetone = profile.contains(QLatin1String("SideTone")) || profile.contains(QLatin1String("SideToneValue"));
+    if (hasSidetone || !equalizers.isEmpty()) {
+        auto *box = Ui::card(hasSidetone ? m_i18n->t("txtSidetone", "Sidetone") : m_i18n->t("txtEqualizer", "Equalizer"));
         auto *form = Ui::form(box);
 
-        auto *enabled = new QCheckBox(box);
-        enabled->setChecked(Json::integer(profile, "SideTone") != 0);
-        connect(enabled, &QCheckBox::toggled, this, [this](bool checked) {
-            m_client->post(QStringLiteral("/api/headset/sidetone"),
-                           QJsonObject{
-                               {QStringLiteral("deviceId"), m_serial},
-                               {QStringLiteral("sideTone"), checked ? 1 : 0},
-                           },
-                           {});
-        });
-        form->addRow(m_i18n->t("txtSidetone", "Sidetone"), enabled);
+        if (hasSidetone) {
+            auto *enabled = new QCheckBox(box);
+            enabled->setChecked(Json::integer(profile, "SideTone") != 0);
+            connect(enabled, &QCheckBox::toggled, this, [this](bool checked) {
+                m_client->post(QStringLiteral("/api/headset/sidetone"),
+                               QJsonObject{
+                                   {QStringLiteral("deviceId"), m_serial},
+                                   {QStringLiteral("sideTone"), checked ? 1 : 0},
+                               },
+                               {});
+            });
+            form->addRow(m_i18n->t("txtSidetone", "Sidetone"), enabled);
 
-        auto *slider = new QSlider(Qt::Horizontal, box);
-        slider->setRange(1, 100);
-        slider->setValue(qBound(1, Json::integer(profile, "SideToneValue", 50), 100));
-        auto *value = new QLabel(QStringLiteral("%1 %").arg(slider->value()), box);
-        auto *row = new QWidget(box);
-        auto *rowLayout = new QHBoxLayout(row);
-        rowLayout->setContentsMargins(0, 0, 0, 0);
-        rowLayout->addWidget(slider, 1);
-        rowLayout->addWidget(value);
-        connect(slider, &QSlider::valueChanged, value, [value](int v) {
-            value->setText(QStringLiteral("%1 %").arg(v));
-        });
-        connect(slider, &QSlider::sliderReleased, this, [this, slider]() {
-            m_client->post(QStringLiteral("/api/headset/sidetoneValue"),
-                           QJsonObject{
-                               {QStringLiteral("deviceId"), m_serial},
-                               {QStringLiteral("sideToneValue"), slider->value()},
-                           },
-                           {});
-        });
-        form->addRow(m_i18n->t("txtSidetoneValue", "Sidetone level"), row);
-        m_grid->addCard(box);
-    }
-
-    if (!equalizers.isEmpty()) {
-        auto *box = Ui::card(m_i18n->t("txtEqualizer", "Equalizer"));
-        auto *form = Ui::form(box);
-        QHash<int, QSlider *> sliders;
-        QList<int> ids;
-        for (auto it = equalizers.begin(); it != equalizers.end(); ++it) {
-            ids.append(it.key().toInt());
-        }
-        std::sort(ids.begin(), ids.end());
-        for (int id : ids) {
-            const QJsonObject band = Json::object(equalizers.value(QString::number(id)));
             auto *slider = new QSlider(Qt::Horizontal, box);
-            slider->setRange(-10, 10);
-            slider->setValue(Json::integer(band, "Value"));
-            sliders.insert(id, slider);
-            form->addRow(Json::str(band, "Name", QString::number(id)), slider);
+            slider->setRange(1, 100);
+            slider->setValue(qBound(1, Json::integer(profile, "SideToneValue", 50), 100));
+            auto *value = new QLabel(QStringLiteral("%1 %").arg(slider->value()), box);
+            auto *row = new QWidget(box);
+            auto *rowLayout = new QHBoxLayout(row);
+            rowLayout->setContentsMargins(0, 0, 0, 0);
+            rowLayout->addWidget(slider, 1);
+            rowLayout->addWidget(value);
+            connect(slider, &QSlider::valueChanged, value, [value](int level) {
+                value->setText(QStringLiteral("%1 %").arg(level));
+            });
+            connect(slider, &QSlider::sliderReleased, this, [this, slider]() {
+                m_client->post(QStringLiteral("/api/headset/sidetoneValue"),
+                               QJsonObject{
+                                   {QStringLiteral("deviceId"), m_serial},
+                                   {QStringLiteral("sideToneValue"), slider->value()},
+                               },
+                               {});
+            });
+            form->addRow(m_i18n->t("txtSidetoneValue", "Sidetone level"), row);
         }
-        auto *save = new QPushButton(m_i18n->t("txtSave", "Save"), box);
-        connect(save, &QPushButton::clicked, this, [this, sliders]() {
-            QJsonObject values;
-            for (auto it = sliders.begin(); it != sliders.end(); ++it) {
-                values.insert(QString::number(it.key()), it.value()->value());
+
+        if (!equalizers.isEmpty()) {
+            if (hasSidetone) {
+                auto *heading = new QLabel(m_i18n->t("txtEqualizer", "Equalizer"), box);
+                QFont font = heading->font();
+                font.setBold(true);
+                heading->setFont(font);
+                form->addRow(heading);
             }
-            m_client->post(QStringLiteral("/api/headset/equalizer"),
-                           QJsonObject{
-                               {QStringLiteral("deviceId"), m_serial},
-                               {QStringLiteral("equalizers"), values},
-                           },
-                           {});
-        });
-        form->addRow(QString(), save);
+            QHash<int, QSlider *> sliders;
+            QList<int> ids;
+            for (auto it = equalizers.begin(); it != equalizers.end(); ++it) {
+                ids.append(it.key().toInt());
+            }
+            std::sort(ids.begin(), ids.end());
+            for (int id : ids) {
+                const QJsonObject band = Json::object(equalizers.value(QString::number(id)));
+                auto *slider = new QSlider(Qt::Horizontal, box);
+                slider->setRange(-10, 10);
+                slider->setValue(Json::integer(band, "Value"));
+                sliders.insert(id, slider);
+                form->addRow(Json::str(band, "Name", QString::number(id)), slider);
+            }
+            auto *save = new QPushButton(m_i18n->t("txtSave", "Save"), box);
+            connect(save, &QPushButton::clicked, this, [this, sliders]() {
+                QJsonObject values;
+                for (auto it = sliders.begin(); it != sliders.end(); ++it) {
+                    values.insert(QString::number(it.key()), it.value()->value());
+                }
+                m_client->post(QStringLiteral("/api/headset/equalizer"),
+                               QJsonObject{
+                                   {QStringLiteral("deviceId"), m_serial},
+                                   {QStringLiteral("equalizers"), values},
+                               },
+                               {});
+            });
+            form->addRow(QString(), save);
+        }
         m_grid->addCard(box);
     }
 }
