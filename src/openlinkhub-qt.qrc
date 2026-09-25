@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/kxmlgui6/openlinkhub-qt">
+        <file alias="openlinkhub-qtui.rc">openlinkhub-qtui.rc</file>
+    </qresource>
+    <qresource prefix="/kxmlgui5/openlinkhub-qt">
+        <file alias="openlinkhub-qtui.rc">openlinkhub-qtui.rc</file>
+    </qresource>
+</RCC>

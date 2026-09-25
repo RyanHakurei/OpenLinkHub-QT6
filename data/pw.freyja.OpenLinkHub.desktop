@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=OpenLinkHub
+GenericName=Device Control
+Comment=Native KDE frontend for OpenLinkHub
+Exec=openlinkhub-qt
+Icon=openlinkhub-qt
+Terminal=false
+Categories=Settings;HardwareSettings;Qt;KDE;
+StartupNotify=true
+Keywords=corsair;icue;rgb;fan;aio;openlinkhub;

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>pw.freyja.OpenLinkHub</id>
+  <name>OpenLinkHub</name>
+  <summary>Native KDE frontend for OpenLinkHub</summary>
+  <developer id="pw.freyja">
+    <name>Ryan</name>
+  </developer>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <description>
+    <p>
+      A native Qt 6 and KDE frontend for the OpenLinkHub daemon. It mirrors the
+      OpenLinkHub web interface — devices, dashboard, RGB, fan curves, LCD,
+      macros, and settings — using your desktop and Kvantum widget theme.
+    </p>
+  </description>
+  <url type="homepage">https://openlinkhub.dev</url>
+  <launchable type="desktop-id">pw.freyja.OpenLinkHub.desktop</launchable>
+  <provides>
+    <binary>openlinkhub-qt</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+</component>
