@@ -2,7 +2,7 @@
 Type=Application
 Name=OpenLinkHub
 GenericName=Device Control
-Comment=Native KDE frontend for OpenLinkHub
+Comment=Companion KDE frontend for the OpenLinkHub daemon
 Exec=openlinkhub-qt
 Icon=openlinkhub-qt
 Terminal=false

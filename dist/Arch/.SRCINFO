@@ -1,5 +1,5 @@
 pkgbase = openlinkhub-qt-git
-	pkgdesc = Native KDE frontend for the OpenLinkHub daemon
+	pkgdesc = Companion KDE frontend for the OpenLinkHub daemon
 	pkgver = 0.1.0.r6.g0033929
 	pkgrel = 1
 	url = https://github.com/RyanHakurei/OpenLinkHub-QT6
