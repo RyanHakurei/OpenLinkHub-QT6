@@ -1,5 +1,6 @@
 #pragma once
 
+#include "widgets/Card.h"
 #include "widgets/FitScrollArea.h"
 
 #include <QFormLayout>
@@ -25,9 +26,9 @@ inline void makeTranslucent(QWidget *widget)
     widget->setPalette(palette);
 }
 
-inline QGroupBox *card(const QString &title, QWidget *parent = nullptr)
+inline Card *card(const QString &title, QWidget *parent = nullptr)
 {
-    auto *box = new QGroupBox(title, parent);
+    auto *box = new Card(title, parent);
     box->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     box->setMinimumWidth(0);
     auto *layout = new QFormLayout(box);

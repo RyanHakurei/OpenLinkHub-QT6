@@ -4,7 +4,8 @@
 #include "widgets/Telemetry.h"
 #include "widgets/UiHelpers.h"
 
-#include <QGroupBox>
+#include "widgets/Card.h"
+
 #include <QLabel>
 #include <QVBoxLayout>
 
@@ -22,7 +23,7 @@ TemperatureBar::TemperatureBar(QWidget *parent)
 
 QWidget *TemperatureBar::makeCard(QLabel **title, QLabel **value, QLabel **subtitle)
 {
-    auto *box = new QGroupBox(this);
+    auto *box = new Card(this);
     box->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     box->setMinimumWidth(0);
     auto *layout = new QVBoxLayout(box);

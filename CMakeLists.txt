@@ -59,8 +59,8 @@ add_executable(openlinkhub-qt
     src/i18n/HubI18n.cpp
     src/widgets/Sidebar.cpp
     src/widgets/TemperatureBar.cpp
+    src/widgets/Card.cpp
     src/widgets/CardGrid.cpp
-    src/widgets/ContentFrame.cpp
     src/widgets/FanCurveChart.cpp
     src/pages/DashboardPage.cpp
     src/pages/DevicePage.cpp

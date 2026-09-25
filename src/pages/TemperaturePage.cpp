@@ -3,13 +3,14 @@
 #include "api/ApiClient.h"
 #include "api/JsonUtil.h"
 #include "i18n/HubI18n.h"
+#include "widgets/Card.h"
 #include "widgets/FanCurveChart.h"
 #include "widgets/ResponsiveSplit.h"
 
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFormLayout>
-#include <QGroupBox>
+
 #include <QHBoxLayout>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -62,7 +63,7 @@ TemperaturePage::TemperaturePage(ApiClient *client, HubI18n *i18n, QWidget *pare
     m_list = new QListWidget(side);
     left->addWidget(m_list, 1);
 
-    auto *createBox = new QGroupBox(m_i18n->t("txtNewTempProfile", "New temperature profile"), this);
+    auto *createBox = new Card(m_i18n->t("txtNewTempProfile", "New temperature profile"), this);
     auto *createForm = new QFormLayout(createBox);
     m_newName = new QLineEdit(createBox);
     m_sensor = new QComboBox(createBox);
@@ -91,7 +92,7 @@ TemperaturePage::TemperaturePage(ApiClient *client, HubI18n *i18n, QWidget *pare
     auto *graphs = new QHBoxLayout;
     graphs->setSpacing(12);
     auto addCurve = [this, graphs](const QString &title, FanCurveChart **chart, QPushButton **save) {
-        auto *box = new QGroupBox(title, m_details->parentWidget());
+        auto *box = new Card(title, m_details->parentWidget());
         auto *boxLayout = new QVBoxLayout(box);
         *chart = new FanCurveChart(box);
         *save = new QPushButton(m_i18n->t("txtSave", "Save"), box);
