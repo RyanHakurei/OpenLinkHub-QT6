@@ -120,8 +120,15 @@ MainWindow::MainWindow(QWidget *parent)
     };
     for (const QString &name : hiddenHelpActions) {
         if (QAction *action = actionCollection()->action(name)) {
-            actionCollection()->removeAction(action);
-            delete action;
+            const QList<QObject *> objects = action->associatedObjects();
+            for (QObject *object : objects) {
+                if (auto *widget = qobject_cast<QWidget *>(object)) {
+                    widget->removeAction(action);
+                }
+            }
+            action->setShortcut(QKeySequence());
+            action->setEnabled(false);
+            action->setVisible(false);
         }
     }
     m_tray = new TrayController(m_client, this, this);
