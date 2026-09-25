@@ -1,6 +1,7 @@
 #include "pages/SettingsPage.h"
 
 #include "api/ApiClient.h"
+#include "api/HubPaths.h"
 #include "api/JsonUtil.h"
 #include "app/SensorService.h"
 #include "i18n/HubI18n.h"
@@ -10,7 +11,6 @@
 #include <KColorButton>
 #include <QCheckBox>
 #include <QComboBox>
-#include <QDir>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -220,22 +220,15 @@ void SettingsPage::reload()
 
 void SettingsPage::loadScheduler()
 {
-    const QStringList paths{
-        QStringLiteral("/var/lib/openlinkhub/database/scheduler.json"),
-        QStringLiteral("/opt/OpenLinkHub/database/scheduler.json"),
-        QDir::homePath() + QStringLiteral("/.local/share/openlinkhub/database/scheduler.json"),
-    };
-    QJsonObject data;
-    for (const QString &path : paths) {
-        QFile file(path);
-        if (!file.open(QIODevice::ReadOnly)) {
-            continue;
-        }
-        data = QJsonDocument::fromJson(file.readAll()).object();
-        if (!data.isEmpty()) {
-            break;
-        }
+    const QString path = HubPaths::schedulerFile();
+    if (path.isEmpty()) {
+        return;
     }
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return;
+    }
+    const QJsonObject data = QJsonDocument::fromJson(file.readAll()).object();
     if (data.isEmpty()) {
         return;
     }
