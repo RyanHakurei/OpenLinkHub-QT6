@@ -26,7 +26,7 @@
 #include <QIcon>
 #include <QJsonArray>
 #include <QLabel>
-#include <QSplitter>
+#include <QHBoxLayout>
 #include <QCloseEvent>
 #include <QStackedWidget>
 #include <QTimer>
@@ -47,11 +47,14 @@ MainWindow::MainWindow(QWidget *parent)
 
     applyConnectionSettings();
 
-    m_splitter = new QSplitter(this);
-    m_splitter->setAutoFillBackground(false);
-    m_sidebar = new Sidebar(m_splitter);
+    auto *shell = new QWidget(this);
+    Ui::makeTranslucent(shell);
+    auto *shellLayout = new QHBoxLayout(shell);
+    shellLayout->setContentsMargins(0, 0, 0, 0);
+    shellLayout->setSpacing(0);
+    m_sidebar = new Sidebar(shell);
 
-    m_content = new QWidget(m_splitter);
+    m_content = new QWidget(shell);
     Ui::makeTranslucent(m_content);
     auto *right = m_content;
     auto *rightLayout = new QVBoxLayout(right);
@@ -101,12 +104,9 @@ MainWindow::MainWindow(QWidget *parent)
     rightLayout->addWidget(m_temperatureBar);
     rightLayout->addWidget(m_stack, 1);
 
-    m_splitter->addWidget(m_sidebar);
-    m_splitter->addWidget(right);
-    m_splitter->setStretchFactor(0, 0);
-    m_splitter->setStretchFactor(1, 1);
-    m_splitter->setSizes({280, 1000});
-    setCentralWidget(m_splitter);
+    shellLayout->addWidget(m_sidebar);
+    shellLayout->addWidget(right, 1);
+    setCentralWidget(shell);
     setMinimumSize(900, 600);
 
     setupActions();
@@ -122,7 +122,6 @@ MainWindow::MainWindow(QWidget *parent)
         resize(1280, 840);
     }
 
-    connect(m_splitter, &QSplitter::splitterMoved, this, &MainWindow::updateBlur);
     connect(m_sidebar, &Sidebar::pageSelected, this, &MainWindow::showPage);
     connect(m_client, &ApiClient::reachableChanged, this, &MainWindow::updateConnectionUi);
     connect(m_client, &ApiClient::requestFailed, this, [this](const QString &message) {

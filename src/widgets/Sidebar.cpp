@@ -4,15 +4,22 @@
 
 #include <KSeparator>
 #include <QHash>
+#include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
 #include <QPalette>
 #include <QListWidget>
 #include <QListWidgetItem>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 namespace {
 constexpr int PageIdRole = Qt::UserRole;
 constexpr int SerialRole = Qt::UserRole + 1;
+constexpr int LabelRole = Qt::UserRole + 2;
+constexpr int TipRole = Qt::UserRole + 3;
+constexpr int ExpandedWidth = 260;
+constexpr int CollapsedWidth = 56;
 
 QString deviceLabel(const SidebarDevice &device)
 {
@@ -38,15 +45,28 @@ Sidebar::Sidebar(QWidget *parent)
 {
     Ui::makeTranslucent(this);
 
-    auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(8, 12, 8, 12);
-    layout->setSpacing(8);
+    m_layout = new QVBoxLayout(this);
+    m_layout->setContentsMargins(8, 12, 8, 12);
+    m_layout->setSpacing(8);
 
     m_title = new QLabel(tr("OpenLinkHub"), this);
     QFont titleFont = m_title->font();
     titleFont.setBold(true);
     m_title->setFont(titleFont);
     m_title->setWordWrap(true);
+
+    m_collapse = new QToolButton(this);
+    m_collapse->setAutoRaise(true);
+    m_collapse->setIconSize(QSize(16, 16));
+    m_collapse->setToolTip(tr("Collapse sidebar"));
+    connect(m_collapse, &QToolButton::clicked, this, [this]() {
+        setCollapsed(!m_collapsed);
+    });
+
+    m_header = new QHBoxLayout;
+    m_header->setContentsMargins(0, 0, 0, 0);
+    m_header->addWidget(m_title, 1);
+    m_header->addWidget(m_collapse);
 
     m_nav = new QListWidget(this);
     m_nav->setFrameShape(QFrame::NoFrame);
@@ -63,9 +83,10 @@ Sidebar::Sidebar(QWidget *parent)
     statusFont.setPointSize(qMax(8, statusFont.pointSize() - 1));
     m_status->setFont(statusFont);
 
-    layout->addWidget(m_title);
-    layout->addWidget(m_nav, 1);
-    layout->addWidget(m_status);
+    m_layout->addLayout(m_header);
+    m_layout->addWidget(m_nav, 1);
+    m_layout->addWidget(m_status);
+    applyChrome();
 
     setToolLabels(tr("LCD"), tr("Macros"), tr("RGB Cluster"), tr("RGB Editor"), tr("Temperature Profiles"), tr("Settings"));
 
@@ -106,7 +127,7 @@ void Sidebar::setToolLabels(const QString &lcd, const QString &macros, const QSt
         const QString id = item->data(PageIdRole).toString();
         for (const ToolItem &tool : std::as_const(m_tools)) {
             if (tool.id == id) {
-                item->setText(tool.label);
+                setItemLabel(item, tool.label);
                 break;
             }
         }
@@ -134,8 +155,9 @@ void Sidebar::addToolItems()
     addSeparator();
 
     for (const ToolItem &tool : std::as_const(m_tools)) {
-        auto *item = new QListWidgetItem(QIcon::fromTheme(tool.icon), tool.label);
+        auto *item = new QListWidgetItem(QIcon::fromTheme(tool.icon), QString());
         item->setData(PageIdRole, tool.id);
+        setItemLabel(item, tool.label);
         m_nav->addItem(item);
     }
 }
@@ -146,15 +168,16 @@ void Sidebar::rebuild(const QList<SidebarDevice> &devices)
     m_updating = true;
     m_nav->clear();
 
-    auto *dashboard = new QListWidgetItem(QIcon::fromTheme(QStringLiteral("view-dashboard"), QIcon::fromTheme(QStringLiteral("user-desktop"))), tr("Dashboard"));
+    auto *dashboard = new QListWidgetItem(QIcon::fromTheme(QStringLiteral("view-dashboard"), QIcon::fromTheme(QStringLiteral("user-desktop"))), QString());
     dashboard->setData(PageIdRole, QStringLiteral("dashboard"));
+    setItemLabel(dashboard, tr("Dashboard"));
     m_nav->addItem(dashboard);
 
     for (const SidebarDevice &device : devices) {
-        auto *item = new QListWidgetItem(device.icon, deviceLabel(device));
+        auto *item = new QListWidgetItem(device.icon, QString());
         item->setData(PageIdRole, QString(QStringLiteral("device:") + device.serial));
         item->setData(SerialRole, device.serial);
-        item->setToolTip(device.serial);
+        setItemLabel(item, deviceLabel(device), device.serial);
         m_nav->addItem(item);
     }
 
@@ -199,10 +222,7 @@ void Sidebar::setDevices(const QList<SidebarDevice> &devices)
                 return;
             }
             item->setIcon(merged.at(i).icon);
-            const QString label = deviceLabel(merged.at(i));
-            if (item->text() != label) {
-                item->setText(label);
-            }
+            setItemLabel(item, deviceLabel(merged.at(i)), merged.at(i).serial);
         }
         m_devices = merged;
         return;
@@ -254,10 +274,7 @@ void Sidebar::setBattery(const QString &serial, int level)
             }
         }
         current.battery = level;
-        const QString label = deviceLabel(current);
-        if (item->text() != label) {
-            item->setText(label);
-        }
+        setItemLabel(item, deviceLabel(current), serial);
         return;
     }
 }
@@ -276,6 +293,51 @@ void Sidebar::selectPage(const QString &pageId)
         m_updating = true;
         m_nav->setCurrentItem(item);
         m_updating = false;
+    }
+}
+
+void Sidebar::setCollapsed(bool collapsed)
+{
+    if (m_collapsed == collapsed) {
+        return;
+    }
+    m_collapsed = collapsed;
+    applyChrome();
+}
+
+void Sidebar::setItemLabel(QListWidgetItem *item, const QString &label, const QString &expandedTip)
+{
+    item->setData(LabelRole, label);
+    item->setData(TipRole, expandedTip);
+    applyItemLabel(item);
+}
+
+void Sidebar::applyItemLabel(QListWidgetItem *item)
+{
+    const QString label = item->data(LabelRole).toString();
+    if (label.isEmpty()) {
+        return;
+    }
+    if (m_collapsed) {
+        item->setText(QString());
+        item->setToolTip(label);
+        return;
+    }
+    item->setText(label);
+    item->setToolTip(item->data(TipRole).toString());
+}
+
+void Sidebar::applyChrome()
+{
+    m_title->setVisible(!m_collapsed);
+    m_status->setVisible(!m_collapsed);
+    m_header->setAlignment(m_collapsed ? Qt::AlignHCenter : Qt::AlignVCenter);
+    setFixedWidth(m_collapsed ? CollapsedWidth : ExpandedWidth);
+    m_layout->setContentsMargins(m_collapsed ? 4 : 8, 12, m_collapsed ? 4 : 8, 12);
+    m_collapse->setIcon(QIcon::fromTheme(m_collapsed ? QStringLiteral("sidebar-expand") : QStringLiteral("sidebar-collapse")));
+    m_collapse->setToolTip(m_collapsed ? tr("Expand sidebar") : tr("Collapse sidebar"));
+    for (int i = 0; i < m_nav->count(); ++i) {
+        applyItemLabel(m_nav->item(i));
     }
 }
 

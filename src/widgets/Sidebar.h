@@ -6,6 +6,9 @@
 class QListWidget;
 class QListWidgetItem;
 class QLabel;
+class QToolButton;
+class QHBoxLayout;
+class QVBoxLayout;
 
 struct SidebarDevice {
     QString serial;
@@ -46,11 +49,19 @@ private:
     void addSeparator();
     void addToolItems();
     void makeTranslucent(QWidget *widget);
+    void setItemLabel(QListWidgetItem *item, const QString &label, const QString &expandedTip = {});
+    void applyItemLabel(QListWidgetItem *item);
+    void applyChrome();
+    void setCollapsed(bool collapsed);
 
+    QVBoxLayout *m_layout = nullptr;
+    QHBoxLayout *m_header = nullptr;
     QLabel *m_title;
+    QToolButton *m_collapse = nullptr;
     QListWidget *m_nav;
     QLabel *m_status;
     bool m_updating = false;
+    bool m_collapsed = false;
     QStringList m_serials;
     QList<SidebarDevice> m_devices;
     QList<ToolItem> m_tools;

@@ -24,7 +24,6 @@ class ClusterPage;
 class DevicePage;
 class TrayController;
 class QStackedWidget;
-class QSplitter;
 class QTimer;
 class KMessageWidget;
 
@@ -59,7 +58,6 @@ private:
     ApiClient *m_client;
     HubI18n *m_i18n;
     IconCache *m_icons;
-    QSplitter *m_splitter;
     QWidget *m_content;
     Sidebar *m_sidebar;
     TemperatureBar *m_temperatureBar;
