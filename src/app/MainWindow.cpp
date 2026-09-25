@@ -23,6 +23,7 @@
 #include <KMessageWidget>
 #include <KStandardAction>
 #include <KWindowEffects>
+#include <QAction>
 #include <QIcon>
 #include <QJsonArray>
 #include <QLabel>
@@ -111,6 +112,18 @@ MainWindow::MainWindow(QWidget *parent)
 
     setupActions();
     setupGUI(Keys | Save | Create, QStringLiteral(":/kxmlgui6/openlinkhub-qt/openlinkhub-qtui.rc"));
+    // KXmlGui adds these to Help. This app has no handbook or What's This mode.
+    const QStringList hiddenHelpActions{
+        QStringLiteral("help_contents"),
+        QStringLiteral("help_whats_this"),
+        QStringLiteral("open_kcommand_bar"),
+    };
+    for (const QString &name : hiddenHelpActions) {
+        if (QAction *action = actionCollection()->action(name)) {
+            actionCollection()->removeAction(action);
+            delete action;
+        }
+    }
     m_tray = new TrayController(m_client, this, this);
     connect(m_tray, &TrayController::quitRequested, this, &MainWindow::quit);
     connect(m_tray, &TrayController::deviceChanged, this, [this](const QString &serial) {

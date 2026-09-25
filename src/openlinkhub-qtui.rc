@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<gui name="openlinkhub-qt" version="1">
+<gui name="openlinkhub-qt" version="2">
     <MenuBar>
         <Menu name="file"><text>&amp;File</text>
             <Action name="file_refresh"/>
@@ -12,9 +12,6 @@
             <Action name="options_show_menubar"/>
         </Menu>
         <Menu name="help"><text>&amp;Help</text>
-            <Action name="help_contents"/>
-            <Action name="help_whats_this"/>
-            <Separator/>
             <Action name="help_about_app"/>
             <Action name="help_about_kde"/>
         </Menu>
