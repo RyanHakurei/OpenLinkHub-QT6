@@ -215,11 +215,14 @@ SettingsPage::SettingsPage(ApiClient *client, HubI18n *i18n, QWidget *parent)
     auto *supportedLayout = new QVBoxLayout;
     m_supported = new QTableWidget(0, 3, supported);
     m_supported->setHorizontalHeaderLabels({m_i18n->t("txtProductId", "Product Id"), m_i18n->t("txtProductName", "Product Name"), m_i18n->t("txtEnabled", "Enabled")});
-    m_supported->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_supported->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    m_supported->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    m_supported->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    m_supported->horizontalHeader()->setStretchLastSection(false);
     m_supported->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_supported->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_supported->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_supported->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    m_supported->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Expanding);
     m_supported->setMinimumHeight(180);
     auto *saveSupported = new QPushButton(m_i18n->t("txtSave", "Save"), supported);
     supportedLayout->addWidget(m_supported);
@@ -394,7 +397,8 @@ void SettingsPage::loadSupportedDevices()
             m_supported->setItem(row, 2, enabled);
             ++row;
         }
-        m_supported->resizeColumnsToContents();
+        m_supported->resizeColumnToContents(0);
+        m_supported->resizeColumnToContents(2);
     });
 }
 
