@@ -506,19 +506,46 @@ void DevicePage::addHeadsetCards(const QJsonObject &device)
             });
             form->addRow(m_i18n->t("txtMuteIndicator", "Mute indicator"), mute);
         }
+        m_grid->addCard(box);
+    }
 
-        auto *sidetone = new QSlider(Qt::Horizontal, box);
-        sidetone->setRange(0, 100);
-        sidetone->setValue(Json::integer(profile, "SideToneValue", 0));
-        connect(sidetone, &QSlider::sliderReleased, this, [this, sidetone]() {
-            m_client->post(QStringLiteral("/api/headset/sidetoneValue"),
+    if (profile.contains(QLatin1String("SideTone")) || profile.contains(QLatin1String("SideToneValue"))) {
+        auto *box = Ui::card(m_i18n->t("txtSidetone", "Sidetone"));
+        auto *form = Ui::form(box);
+
+        auto *enabled = new QCheckBox(box);
+        enabled->setChecked(Json::integer(profile, "SideTone") != 0);
+        connect(enabled, &QCheckBox::toggled, this, [this](bool checked) {
+            m_client->post(QStringLiteral("/api/headset/sidetone"),
                            QJsonObject{
                                {QStringLiteral("deviceId"), m_serial},
-                               {QStringLiteral("sideToneValue"), sidetone->value()},
+                               {QStringLiteral("sideTone"), checked ? 1 : 0},
                            },
                            {});
         });
-        form->addRow(m_i18n->t("txtSidetone", "Sidetone"), sidetone);
+        form->addRow(m_i18n->t("txtSidetone", "Sidetone"), enabled);
+
+        auto *slider = new QSlider(Qt::Horizontal, box);
+        slider->setRange(1, 100);
+        slider->setValue(qBound(1, Json::integer(profile, "SideToneValue", 50), 100));
+        auto *value = new QLabel(QStringLiteral("%1 %").arg(slider->value()), box);
+        auto *row = new QWidget(box);
+        auto *rowLayout = new QHBoxLayout(row);
+        rowLayout->setContentsMargins(0, 0, 0, 0);
+        rowLayout->addWidget(slider, 1);
+        rowLayout->addWidget(value);
+        connect(slider, &QSlider::valueChanged, value, [value](int v) {
+            value->setText(QStringLiteral("%1 %").arg(v));
+        });
+        connect(slider, &QSlider::sliderReleased, this, [this, slider]() {
+            m_client->post(QStringLiteral("/api/headset/sidetoneValue"),
+                           QJsonObject{
+                               {QStringLiteral("deviceId"), m_serial},
+                               {QStringLiteral("sideToneValue"), slider->value()},
+                           },
+                           {});
+        });
+        form->addRow(m_i18n->t("txtSidetoneValue", "Sidetone level"), row);
         m_grid->addCard(box);
     }
 
