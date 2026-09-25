@@ -145,6 +145,7 @@ install(FILES data/pw.freyja.OpenLinkHub.metainfo.xml DESTINATION ${KDE_INSTALL_
 
 ecm_install_icons(ICONS
     icons/sc-apps-openlinkhub-qt.svg
+    icons/sc-apps-openlinkhub-qt-symbolic.svg
     DESTINATION ${KDE_INSTALL_ICONDIR}
     THEME hicolor
 )
