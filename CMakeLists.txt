@@ -69,6 +69,7 @@ add_executable(openlinkhub-qt
     src/pages/LcdPage.cpp
     src/pages/ClusterPage.cpp
     src/app/SensorService.cpp
+    src/app/DaemonService.cpp
 )
 
 target_include_directories(openlinkhub-qt PRIVATE

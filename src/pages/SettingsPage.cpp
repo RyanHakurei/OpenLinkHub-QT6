@@ -3,6 +3,7 @@
 #include "api/ApiClient.h"
 #include "api/HubPaths.h"
 #include "api/JsonUtil.h"
+#include "app/DaemonService.h"
 #include "app/SensorService.h"
 #include "i18n/HubI18n.h"
 #include "widgets/CardGrid.h"
@@ -183,6 +184,33 @@ SettingsPage::SettingsPage(ApiClient *client, HubI18n *i18n, QWidget *parent)
     connect(m_sensorService, &SensorService::changed, this, &SettingsPage::refreshSensorService);
     refreshSensorService();
 
+    m_daemon = new DaemonService(this);
+    auto *daemon = Ui::card(tr("OpenLinkHub service"));
+    auto *daemonForm = Ui::form(daemon);
+    m_daemonStatus = new QLabel(daemon);
+    m_daemonRestart = new QPushButton(tr("Restart service"), daemon);
+    m_daemonMessage = new QLabel(daemon);
+    m_daemonMessage->setWordWrap(true);
+    m_daemonMessage->hide();
+    auto *daemonHint = new QLabel(tr("Restarts the OpenLinkHub daemon. A password prompt appears when administrator permission is required."), daemon);
+    daemonHint->setWordWrap(true);
+    daemonForm->addRow(tr("Status"), m_daemonStatus);
+    daemonForm->addRow(m_daemonRestart);
+    daemonForm->addRow(m_daemonMessage);
+    daemonForm->addRow(daemonHint);
+    connect(m_daemonRestart, &QPushButton::clicked, this, [this]() {
+        m_daemonMessage->hide();
+        m_daemon->restart();
+        refreshDaemon();
+    });
+    connect(m_daemon, &DaemonService::changed, this, &SettingsPage::refreshDaemon);
+    connect(m_daemon, &DaemonService::restartFinished, this, [this](bool, const QString &message) {
+        m_daemonMessage->setText(message);
+        m_daemonMessage->setVisible(!message.isEmpty());
+        refreshDaemon();
+    });
+    refreshDaemon();
+
     auto *supported = Ui::card(m_i18n->t("txtSupportedDevices", "Supported devices"));
     auto *supportedLayout = new QVBoxLayout;
     m_supported = new QTableWidget(0, 3, supported);
@@ -204,6 +232,7 @@ SettingsPage::SettingsPage(ApiClient *client, HubI18n *i18n, QWidget *parent)
     grid->addCard(backup);
     grid->addCard(scheduler);
     grid->addCard(sensors);
+    grid->addCard(daemon);
     grid->addCard(supported);
     pageLayout->addWidget(Ui::scrollWrap(grid));
 }
@@ -216,6 +245,18 @@ void SettingsPage::reload()
     if (m_sensorService) {
         m_sensorService->refresh();
     }
+    if (m_daemon) {
+        m_daemon->refresh();
+    }
+}
+
+void SettingsPage::refreshDaemon()
+{
+    if (!m_daemon || !m_daemonStatus || !m_daemonRestart) {
+        return;
+    }
+    m_daemonStatus->setText(m_daemon->statusText());
+    m_daemonRestart->setEnabled(m_daemon->canRestart());
 }
 
 void SettingsPage::loadScheduler()

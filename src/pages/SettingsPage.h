@@ -11,6 +11,7 @@ class KColorButton;
 class QTimeEdit;
 class QLabel;
 class QPushButton;
+class DaemonService;
 class SensorService;
 
 class SettingsPage : public QWidget
@@ -32,6 +33,7 @@ private:
     void saveScheduler();
     void loadScheduler();
     void refreshSensorService();
+    void refreshDaemon();
 
     ApiClient *m_client;
     HubI18n *m_i18n;
@@ -59,4 +61,8 @@ private:
     QCheckBox *m_sensorEnabled = nullptr;
     QPushButton *m_sensorStart = nullptr;
     QPushButton *m_sensorStop = nullptr;
+    DaemonService *m_daemon = nullptr;
+    QLabel *m_daemonStatus = nullptr;
+    QLabel *m_daemonMessage = nullptr;
+    QPushButton *m_daemonRestart = nullptr;
 };
