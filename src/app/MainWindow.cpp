@@ -14,6 +14,7 @@
 #include "pages/RgbEditorPage.h"
 #include "pages/SettingsPage.h"
 #include "pages/TemperaturePage.h"
+#include "widgets/ContentFrame.h"
 #include "widgets/Sidebar.h"
 #include "widgets/TemperatureBar.h"
 #include "widgets/UiHelpers.h"
@@ -54,8 +55,12 @@ MainWindow::MainWindow(QWidget *parent)
     shellLayout->setSpacing(0);
     m_sidebar = new Sidebar(shell);
 
-    m_content = new QWidget(shell);
-    Ui::makeTranslucent(m_content);
+    auto *frameWrap = new QWidget(shell);
+    Ui::makeTranslucent(frameWrap);
+    auto *frameWrapLayout = new QVBoxLayout(frameWrap);
+    frameWrapLayout->setContentsMargins(0, 8, 8, 8);
+    m_content = new ContentFrame(frameWrap);
+    frameWrapLayout->addWidget(m_content);
     auto *right = m_content;
     auto *rightLayout = new QVBoxLayout(right);
     rightLayout->setContentsMargins(12, 12, 12, 12);
@@ -105,7 +110,7 @@ MainWindow::MainWindow(QWidget *parent)
     rightLayout->addWidget(m_stack, 1);
 
     shellLayout->addWidget(m_sidebar);
-    shellLayout->addWidget(right, 1);
+    shellLayout->addWidget(frameWrap, 1);
     setCentralWidget(shell);
     setMinimumSize(900, 600);
 
