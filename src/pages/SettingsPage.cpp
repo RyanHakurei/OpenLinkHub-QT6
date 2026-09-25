@@ -185,19 +185,22 @@ SettingsPage::SettingsPage(ApiClient *client, HubI18n *i18n, QWidget *parent)
     refreshSensorService();
 
     m_daemon = new DaemonService(this);
-    auto *daemon = Ui::card(tr("OpenLinkHub service"));
-    auto *daemonForm = Ui::form(daemon);
-    m_daemonStatus = new QLabel(daemon);
-    m_daemonRestart = new QPushButton(tr("Restart service"), daemon);
-    m_daemonMessage = new QLabel(daemon);
+    m_daemonStatus = new QLabel(sensors);
+    m_daemonRestart = new QPushButton(tr("Restart service"), sensors);
+    m_daemonMessage = new QLabel(sensors);
     m_daemonMessage->setWordWrap(true);
     m_daemonMessage->hide();
-    auto *daemonHint = new QLabel(tr("Restarts the OpenLinkHub daemon. A password prompt appears when administrator permission is required."), daemon);
+    auto *daemonHint = new QLabel(tr("Restarts the OpenLinkHub daemon. A password prompt appears when administrator permission is required."), sensors);
     daemonHint->setWordWrap(true);
-    daemonForm->addRow(tr("Status"), m_daemonStatus);
-    daemonForm->addRow(m_daemonRestart);
-    daemonForm->addRow(m_daemonMessage);
-    daemonForm->addRow(daemonHint);
+    auto *daemonHeading = new QLabel(tr("OpenLinkHub service"), sensors);
+    QFont daemonFont = daemonHeading->font();
+    daemonFont.setBold(true);
+    daemonHeading->setFont(daemonFont);
+    sensorForm->addRow(daemonHeading);
+    sensorForm->addRow(tr("Status"), m_daemonStatus);
+    sensorForm->addRow(m_daemonRestart);
+    sensorForm->addRow(m_daemonMessage);
+    sensorForm->addRow(daemonHint);
     connect(m_daemonRestart, &QPushButton::clicked, this, [this]() {
         m_daemonMessage->hide();
         m_daemon->restart();
@@ -235,7 +238,6 @@ SettingsPage::SettingsPage(ApiClient *client, HubI18n *i18n, QWidget *parent)
     grid->addCard(backup);
     grid->addCard(scheduler);
     grid->addCard(sensors);
-    grid->addCard(daemon);
     grid->addCard(supported, 2);
     pageLayout->addWidget(Ui::scrollWrap(grid));
 }
