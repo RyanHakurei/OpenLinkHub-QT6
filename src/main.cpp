@@ -26,8 +26,11 @@ int main(int argc, char **argv)
                      i18n("© 2026 Ryan"),
                      {},
                      QStringLiteral("https://openlinkhub.dev"),
-                     QStringLiteral("ryan@freyja.pw"));
-    about.addAuthor(i18n("Ryan"), {}, QStringLiteral("ryan@freyja.pw"));
+                     QStringLiteral("https://github.com/RyanHakurei/OpenLinkHub-QT6/issues"));
+    about.addAuthor(i18n("Ryan"),
+                    i18n("Submit an issue on GitHub"),
+                    {},
+                    QStringLiteral("https://github.com/RyanHakurei/OpenLinkHub-QT6/issues"));
     about.setDesktopFileName(QStringLiteral("pw.freyja.OpenLinkHub"));
     KAboutData::setApplicationData(about);
     app.setWindowIcon(QIcon::fromTheme(QStringLiteral("openlinkhub-qt")));
