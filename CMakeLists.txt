@@ -60,6 +60,7 @@ add_executable(openlinkhub-qt
     src/widgets/Sidebar.cpp
     src/widgets/TemperatureBar.cpp
     src/widgets/CardGrid.cpp
+    src/widgets/FanCurveChart.cpp
     src/pages/DashboardPage.cpp
     src/pages/DevicePage.cpp
     src/pages/SettingsPage.cpp

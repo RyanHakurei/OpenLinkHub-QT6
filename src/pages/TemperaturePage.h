@@ -3,12 +3,13 @@
 #include <QWidget>
 
 class ApiClient;
+class FanCurveChart;
 class HubI18n;
 class QListWidget;
-class QTableWidget;
 class QComboBox;
 class QLineEdit;
 class QCheckBox;
+class QLabel;
 class QPushButton;
 
 class TemperaturePage : public QWidget
@@ -27,18 +28,23 @@ private:
     void showProfile(const QString &name);
     void createProfile();
     void deleteProfile();
-    void saveProfile();
+    void saveCurve(int updateType);
+    static bool isBuiltIn(const QString &name);
 
     ApiClient *m_client;
     HubI18n *m_i18n;
     QListWidget *m_list;
-    QTableWidget *m_table;
     QLineEdit *m_newName;
     QComboBox *m_sensor;
     QCheckBox *m_zeroRpm;
     QCheckBox *m_staticMode;
     QCheckBox *m_linear;
-    QPushButton *m_updateButton;
+    QLabel *m_details;
+    FanCurveChart *m_pump = nullptr;
+    FanCurveChart *m_fans = nullptr;
+    QPushButton *m_savePump = nullptr;
+    QPushButton *m_saveFans = nullptr;
+    QPushButton *m_deleteButton = nullptr;
     QString m_current;
     QStringList m_visible;
 };
