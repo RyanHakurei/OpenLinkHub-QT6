@@ -3,6 +3,7 @@
 #include "widgets/UiHelpers.h"
 
 #include <KSeparator>
+#include <QHash>
 #include <QLabel>
 #include <QPalette>
 #include <QListWidget>
@@ -12,6 +13,15 @@
 namespace {
 constexpr int PageIdRole = Qt::UserRole;
 constexpr int SerialRole = Qt::UserRole + 1;
+
+QString deviceLabel(const SidebarDevice &device)
+{
+    QString label = device.product;
+    if (device.battery >= 0) {
+        label += QStringLiteral("  (%1%)").arg(device.battery);
+    }
+    return label;
+}
 }
 
 void Sidebar::makeTranslucent(QWidget *widget)
@@ -142,11 +152,7 @@ void Sidebar::rebuild(const QList<SidebarDevice> &devices)
     m_nav->addItem(dashboard);
 
     for (const SidebarDevice &device : devices) {
-        QString label = device.product;
-        if (device.battery >= 0) {
-            label += QStringLiteral("  (%1%)").arg(device.battery);
-        }
-        auto *item = new QListWidgetItem(device.icon, label);
+        auto *item = new QListWidgetItem(device.icon, deviceLabel(device));
         item->setData(PageIdRole, QString(QStringLiteral("device:") + device.serial));
         item->setData(SerialRole, device.serial);
         item->setToolTip(device.serial);
@@ -171,29 +177,41 @@ void Sidebar::setDevices(const QList<SidebarDevice> &devices)
         serials.append(device.serial);
     }
 
+    QHash<QString, int> batteries;
+    for (const SidebarDevice &existing : std::as_const(m_devices)) {
+        if (existing.battery >= 0) {
+            batteries.insert(existing.serial, existing.battery);
+        }
+    }
+    QList<SidebarDevice> merged = devices;
+    for (SidebarDevice &device : merged) {
+        if (device.battery < 0 && batteries.contains(device.serial)) {
+            device.battery = batteries.value(device.serial);
+        }
+    }
+
     if (serials == m_serials && m_nav->count() > 0) {
-        for (int i = 0; i < devices.size(); ++i) {
+        for (int i = 0; i < merged.size(); ++i) {
             QListWidgetItem *item = m_nav->item(i + 1);
-            if (!item || item->data(SerialRole).toString() != devices.at(i).serial) {
-                rebuild(devices);
+            if (!item || item->data(SerialRole).toString() != merged.at(i).serial) {
+                rebuild(merged);
                 m_serials = serials;
-                m_devices = devices;
+                m_devices = merged;
                 return;
             }
-            item->setIcon(devices.at(i).icon);
-            QString label = devices.at(i).product;
-            if (devices.at(i).battery >= 0) {
-                label += QStringLiteral("  (%1%)").arg(devices.at(i).battery);
+            item->setIcon(merged.at(i).icon);
+            const QString label = deviceLabel(merged.at(i));
+            if (item->text() != label) {
+                item->setText(label);
             }
-            item->setText(label);
         }
-        m_devices = devices;
+        m_devices = merged;
         return;
     }
 
     m_serials = serials;
-    m_devices = devices;
-    rebuild(devices);
+    m_devices = merged;
+    rebuild(merged);
 }
 
 void Sidebar::setStatus(const QString &status)
@@ -214,20 +232,34 @@ void Sidebar::updateDeviceIcon(const QString &serial, const QIcon &icon)
 
 void Sidebar::setBattery(const QString &serial, int level)
 {
+    QString product;
+    for (SidebarDevice &device : m_devices) {
+        if (device.serial == serial) {
+            device.battery = level;
+            product = device.product;
+            break;
+        }
+    }
     for (int i = 0; i < m_nav->count(); ++i) {
         QListWidgetItem *item = m_nav->item(i);
-        if (item->data(SerialRole).toString() == serial) {
-            QString text = item->text();
-            const int cut = text.lastIndexOf(QStringLiteral("  ("));
-            if (cut > 0) {
-                text = text.left(cut);
-            }
-            if (level >= 0) {
-                text += QStringLiteral("  (%1%)").arg(level);
-            }
-            item->setText(text);
-            return;
+        if (item->data(SerialRole).toString() != serial) {
+            continue;
         }
+        SidebarDevice current;
+        current.product = product;
+        if (current.product.isEmpty()) {
+            current.product = item->text();
+            const int cut = current.product.lastIndexOf(QStringLiteral("  ("));
+            if (cut > 0) {
+                current.product = current.product.left(cut);
+            }
+        }
+        current.battery = level;
+        const QString label = deviceLabel(current);
+        if (item->text() != label) {
+            item->setText(label);
+        }
+        return;
     }
 }
 
