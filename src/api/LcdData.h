@@ -1,5 +1,7 @@
 #pragma once
 
+#include "api/HubPaths.h"
+
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -13,17 +15,11 @@ namespace LcdData {
 
 inline QString directory()
 {
-    const QStringList candidates{
-        QStringLiteral("/var/lib/openlinkhub/database/lcd"),
-        QStringLiteral("/opt/OpenLinkHub/database/lcd"),
-        QDir::homePath() + QStringLiteral("/.local/share/openlinkhub/database/lcd"),
-    };
-    for (const QString &path : candidates) {
-        if (QDir(path).exists()) {
-            return path;
-        }
+    const QString config = HubPaths::configDir();
+    if (!config.isEmpty()) {
+        return config + QStringLiteral("/database/lcd");
     }
-    return candidates.first();
+    return QStringLiteral("/var/lib/openlinkhub/database/lcd");
 }
 
 inline QJsonObject load(const QString &fileName)
