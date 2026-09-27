@@ -24,6 +24,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
+#include <QLineEdit>
 #include <QNetworkRequest>
 #include <QPushButton>
 #include <QSet>
@@ -229,6 +230,21 @@ SettingsPage::SettingsPage(ApiClient *client, HubI18n *i18n, QWidget *parent)
     m_supported->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_supported->setMinimumHeight(180);
     auto *saveSupported = new QPushButton(m_i18n->t("txtSave", "Save"), supported);
+    auto *filter = new QLineEdit(supported);
+    filter->setPlaceholderText(tr("Filter devices"));
+    filter->setClearButtonEnabled(true);
+    connect(filter, &QLineEdit::textChanged, this, [this](const QString &text) {
+        const QString needle = text.trimmed();
+        for (int row = 0; row < m_supported->rowCount(); ++row) {
+            const QTableWidgetItem *idItem = m_supported->item(row, 0);
+            const QTableWidgetItem *nameItem = m_supported->item(row, 1);
+            const QString id = idItem ? idItem->text() : QString();
+            const QString name = nameItem ? nameItem->text() : QString();
+            const bool match = needle.isEmpty() || id.contains(needle, Qt::CaseInsensitive) || name.contains(needle, Qt::CaseInsensitive);
+            m_supported->setRowHidden(row, !match);
+        }
+    });
+    supportedLayout->addWidget(filter);
     supportedLayout->addWidget(m_supported);
     supportedLayout->addWidget(new QLabel(m_i18n->t("txtServiceRestartRequired", "Service restart required"), supported));
     supportedLayout->addWidget(saveSupported);
@@ -402,6 +418,17 @@ void SettingsPage::loadSupportedDevices()
         }
         m_supported->resizeColumnToContents(0);
         m_supported->resizeColumnToContents(2);
+        if (auto *filter = m_supported->parentWidget()->findChild<QLineEdit *>()) {
+            const QString needle = filter->text().trimmed();
+            for (int row = 0; row < m_supported->rowCount(); ++row) {
+                const QTableWidgetItem *idItem = m_supported->item(row, 0);
+                const QTableWidgetItem *nameItem = m_supported->item(row, 1);
+                const QString id = idItem ? idItem->text() : QString();
+                const QString name = nameItem ? nameItem->text() : QString();
+                const bool match = needle.isEmpty() || id.contains(needle, Qt::CaseInsensitive) || name.contains(needle, Qt::CaseInsensitive);
+                m_supported->setRowHidden(row, !match);
+            }
+        }
     });
 }
 
