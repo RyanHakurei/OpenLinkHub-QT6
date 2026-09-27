@@ -9,6 +9,7 @@
 
 #include <QComboBox>
 #include <QFile>
+#include <QRegularExpression>
 #include <QGroupBox>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -63,6 +64,52 @@ QStringList clusterRgbModes()
     };
 }
 
+QJsonObject clusterMembers(const QString &html)
+{
+    QJsonObject controllers;
+    const int table = html.indexOf(QStringLiteral("id=\"table\""));
+    const int body = html.indexOf(QStringLiteral("<tbody>"), qMax(0, table));
+    const int end = html.indexOf(QStringLiteral("</tbody>"), body);
+    if (body < 0 || end < body) {
+        return controllers;
+    }
+    const QRegularExpression cell(QStringLiteral("<td>\\s*([^<]*?)\\s*</td>"));
+    QStringList cells;
+    auto it = cell.globalMatch(html.mid(body, end - body));
+    while (it.hasNext()) {
+        cells.append(it.next().captured(1).trimmed());
+    }
+    for (int i = 0; i + 2 < cells.size(); i += 3) {
+        const QString product = cells.at(i);
+        const QString serial = cells.at(i + 1);
+        QJsonObject member;
+        member.insert(QStringLiteral("product"), product);
+        member.insert(QStringLiteral("serial"), serial);
+        member.insert(QStringLiteral("rgb"), cells.at(i + 2));
+        controllers.insert(serial.isEmpty() ? product : serial, member);
+    }
+    return controllers;
+}
+
+QJsonObject clusterDevice(const QJsonObject &profile, const QJsonObject &controllers)
+{
+    QJsonObject device;
+    device.insert(QStringLiteral("product"), QStringLiteral("Cluster"));
+    device.insert(QStringLiteral("DeviceProfile"), profile);
+    QJsonArray modes;
+    const QString current = Json::str(profile, "RGBProfile");
+    QStringList names = clusterRgbModes();
+    if (!current.isEmpty() && !names.contains(current)) {
+        names.prepend(current);
+    }
+    for (const QString &mode : names) {
+        modes.append(mode);
+    }
+    device.insert(QStringLiteral("RGBModes"), modes);
+    device.insert(QStringLiteral("Controllers"), controllers);
+    return device;
+}
+
 QJsonObject clusterProfile()
 {
     const QString path = HubPaths::profileFile(QStringLiteral("cluster"));
@@ -79,20 +126,10 @@ QJsonObject clusterProfile()
 void ClusterPage::reload()
 {
     const QJsonObject profile = clusterProfile();
-    QJsonObject device;
-    device.insert(QStringLiteral("product"), QStringLiteral("Cluster"));
-    device.insert(QStringLiteral("DeviceProfile"), profile);
-    QJsonArray modes;
-    const QString current = Json::str(profile, "RGBProfile");
-    QStringList names = clusterRgbModes();
-    if (!current.isEmpty() && !names.contains(current)) {
-        names.prepend(current);
-    }
-    for (const QString &mode : names) {
-        modes.append(mode);
-    }
-    device.insert(QStringLiteral("RGBModes"), modes);
-    rebuild(device);
+    m_client->getBinary(QStringLiteral("/rgbCluster"), [this, profile](const QByteArray &data, const QString &error, const QString &) {
+        const QJsonObject controllers = error.isEmpty() ? clusterMembers(QString::fromUtf8(data)) : QJsonObject{};
+        rebuild(clusterDevice(profile, controllers));
+    });
 }
 
 void ClusterPage::rebuild(const QJsonObject &device)
@@ -146,6 +183,12 @@ void ClusterPage::rebuild(const QJsonObject &device)
     m_grid->addCard(box);
 
     const QJsonObject controllers = Json::object(device, "Controllers");
+    if (controllers.isEmpty()) {
+        auto *empty = Ui::card(m_i18n->t("txtDevices", "Devices"));
+        auto *emptyForm = Ui::form(empty);
+        emptyForm->addRow(new QLabel(tr("No devices are in the cluster."), empty));
+        m_grid->addCard(empty);
+    }
     for (auto it = controllers.begin(); it != controllers.end(); ++it) {
         const QJsonObject controller = Json::object(it.value());
         auto *card = Ui::card(Json::strAny(controller, {QStringLiteral("product"), QStringLiteral("name"), QStringLiteral("serial")}, it.key()));
