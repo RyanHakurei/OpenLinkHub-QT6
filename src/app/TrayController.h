@@ -8,6 +8,7 @@
 #include <QStringList>
 
 class ApiClient;
+class QAction;
 class QMenu;
 class QSystemTrayIcon;
 class QWidget;
@@ -41,6 +42,8 @@ private:
     };
 
     void refreshDetails();
+    void refreshLights();
+    void setLightsOff(bool off);
     void rebuildMenu();
     void toggleWindow();
     void setSidetone(const QString &serial, bool enabled);
@@ -52,6 +55,10 @@ private:
     QWidget *m_window;
     QSystemTrayIcon *m_tray = nullptr;
     QMenu *m_menu = nullptr;
+    QAction *m_lightsAction = nullptr;
+    bool m_lightsOff = false;
+    bool m_haveDashboard = false;
+    QJsonObject m_dashboard;
     QStringList m_speedProfiles;
     QList<QPair<QString, QString>> m_deviceList;
     QList<DeviceState> m_details;

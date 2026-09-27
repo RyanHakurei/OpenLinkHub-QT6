@@ -8,6 +8,7 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QSignalBlocker>
 #include <QApplication>
 #include <QIcon>
 #include <QMenu>
@@ -66,6 +67,7 @@ TrayController::TrayController(ApiClient *client, QWidget *window, QObject *pare
         m_rebuildWhenReady = m_details.isEmpty();
         rebuildMenu();
         refreshDetails();
+        refreshLights();
     });
     connect(m_tray, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) {
@@ -74,6 +76,7 @@ TrayController::TrayController(ApiClient *client, QWidget *window, QObject *pare
     });
     m_tray->show();
     QApplication::setQuitOnLastWindowClosed(false);
+    refreshLights();
 }
 
 bool TrayController::available() const
@@ -184,16 +187,67 @@ TrayController::DeviceState TrayController::parseDevice(const QString &serial, c
     return state;
 }
 
+void TrayController::refreshLights()
+{
+    if (!m_client) {
+        return;
+    }
+    m_client->get(QStringLiteral("/api/dashboard"), [this](const QJsonObject &json, const QString &error) {
+        if (!error.isEmpty()) {
+            return;
+        }
+        const QJsonObject dashboard = Json::object(json, "dashboard");
+        if (dashboard.isEmpty()) {
+            return;
+        }
+        m_dashboard = dashboard;
+        m_haveDashboard = true;
+        m_lightsOff = Json::boolean(dashboard, "rgbOff");
+        if (m_lightsAction) {
+            const QSignalBlocker blocker(m_lightsAction);
+            m_lightsAction->setChecked(m_lightsOff);
+        }
+    });
+}
+
+void TrayController::setLightsOff(bool off)
+{
+    if (!m_haveDashboard) {
+        refreshLights();
+        return;
+    }
+    QJsonObject body = m_dashboard;
+    body.insert(QStringLiteral("rgbOff"), off);
+    m_client->post(QStringLiteral("/api/dashboard/update"), body, [this, off](const QJsonObject &, const QString &error) {
+        if (!error.isEmpty()) {
+            if (m_lightsAction) {
+                const QSignalBlocker blocker(m_lightsAction);
+                m_lightsAction->setChecked(m_lightsOff);
+            }
+            return;
+        }
+        m_lightsOff = off;
+        m_dashboard.insert(QStringLiteral("rgbOff"), off);
+    });
+}
+
 void TrayController::rebuildMenu()
 {
     if (!m_menu) {
         return;
     }
+    m_lightsAction = nullptr;
     m_menu->clear();
 
     const bool visible = m_window && m_window->isVisible();
     QAction *toggle = m_menu->addAction(visible ? tr("Hide OpenLinkHub") : tr("Show OpenLinkHub"));
     connect(toggle, &QAction::triggered, this, &TrayController::toggleWindow);
+
+    m_lightsAction = m_menu->addAction(tr("Lights off"));
+    m_lightsAction->setCheckable(true);
+    m_lightsAction->setChecked(m_lightsOff);
+    m_lightsAction->setEnabled(m_haveDashboard);
+    connect(m_lightsAction, &QAction::toggled, this, &TrayController::setLightsOff);
     m_menu->addSeparator();
 
     bool anyDevice = false;
