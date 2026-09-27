@@ -2,7 +2,9 @@
 
 #include "widgets/UiHelpers.h"
 
+#include <KConfigGroup>
 #include <KSeparator>
+#include <KSharedConfig>
 #include <QHash>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -86,6 +88,9 @@ Sidebar::Sidebar(QWidget *parent)
     m_layout->addLayout(m_header);
     m_layout->addWidget(m_nav, 1);
     m_layout->addWidget(m_status);
+
+    const KConfigGroup group(KSharedConfig::openConfig(), QStringLiteral("Interface"));
+    m_collapsed = group.readEntry(QStringLiteral("SidebarCollapsed"), false);
     applyChrome();
 
     setToolLabels(tr("LCD"), tr("Macros"), tr("RGB Cluster"), tr("RGB Editor"), tr("Temperature Profiles"), tr("Settings"));
@@ -303,6 +308,9 @@ void Sidebar::setCollapsed(bool collapsed)
     }
     m_collapsed = collapsed;
     applyChrome();
+    KConfigGroup group(KSharedConfig::openConfig(), QStringLiteral("Interface"));
+    group.writeEntry(QStringLiteral("SidebarCollapsed"), m_collapsed);
+    group.sync();
 }
 
 void Sidebar::setItemLabel(QListWidgetItem *item, const QString &label, const QString &expandedTip)
