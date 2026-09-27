@@ -20,6 +20,7 @@ public:
     TrayController(ApiClient *client, QWidget *window, QObject *parent = nullptr);
 
     bool available() const;
+    void noteWindowHidden();
     void setSpeedProfiles(const QStringList &profiles);
     void setDevices(const QList<QPair<QString, QString>> &devices);
 

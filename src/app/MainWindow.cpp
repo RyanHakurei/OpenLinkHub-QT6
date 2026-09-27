@@ -208,6 +208,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     if (!m_quitting && m_tray && m_tray->available()) {
         hide();
+        m_tray->noteWindowHidden();
         event->ignore();
         return;
     }

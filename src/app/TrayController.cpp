@@ -3,6 +3,9 @@
 #include "api/ApiClient.h"
 #include "api/JsonUtil.h"
 
+#include <KConfigGroup>
+#include <KSharedConfig>
+
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
@@ -76,6 +79,23 @@ TrayController::TrayController(ApiClient *client, QWidget *window, QObject *pare
 bool TrayController::available() const
 {
     return m_tray != nullptr;
+}
+
+void TrayController::noteWindowHidden()
+{
+    if (!m_tray) {
+        return;
+    }
+    KConfigGroup group(KSharedConfig::openConfig(), QStringLiteral("Interface"));
+    if (group.readEntry(QStringLiteral("TrayCloseNoticeShown"), false)) {
+        return;
+    }
+    m_tray->showMessage(tr("OpenLinkHub"),
+                        tr("OpenLinkHub is still running in the system tray."),
+                        QSystemTrayIcon::Information,
+                        5000);
+    group.writeEntry(QStringLiteral("TrayCloseNoticeShown"), true);
+    group.sync();
 }
 
 void TrayController::setSpeedProfiles(const QStringList &profiles)
