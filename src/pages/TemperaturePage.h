@@ -19,6 +19,7 @@ class TemperaturePage : public QWidget
 public:
     TemperaturePage(ApiClient *client, HubI18n *i18n, QWidget *parent = nullptr);
     void reload();
+    void refreshLive();
     QStringList visibleProfiles() const;
 
 Q_SIGNALS:
@@ -29,6 +30,7 @@ private:
     void createProfile();
     void deleteProfile();
     void saveCurve(int updateType);
+    void applyLive(double celsius);
     static bool isBuiltIn(const QString &name);
 
     ApiClient *m_client;
@@ -47,4 +49,6 @@ private:
     QPushButton *m_deleteButton = nullptr;
     QString m_current;
     QStringList m_visible;
+    int m_sensorType = 0;
+    int m_liveGeneration = 0;
 };

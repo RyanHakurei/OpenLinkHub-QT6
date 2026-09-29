@@ -13,6 +13,8 @@ public:
 
     void setMaxTemperature(int maxTemperature);
     void setPoints(const QVector<QPointF> &points);
+    void setLiveTemperature(double celsius);
+    void clearLiveTemperature();
     QVector<QPointF> points() const;
 
     QSize sizeHint() const override;
@@ -30,8 +32,11 @@ private:
     QPointF fromPixel(const QPointF &pixel) const;
     int pointAt(const QPointF &pixel) const;
     void sortPoints();
+    double speedAt(double temperature) const;
 
     QVector<QPointF> m_points;
     int m_maxTemperature = 100;
     int m_dragIndex = -1;
+    double m_liveTemperature = 0;
+    bool m_hasLive = false;
 };

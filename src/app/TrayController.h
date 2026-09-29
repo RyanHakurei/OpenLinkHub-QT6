@@ -24,12 +24,22 @@ public:
     void noteWindowHidden();
     void setSpeedProfiles(const QStringList &profiles);
     void setDevices(const QList<QPair<QString, QString>> &devices);
+    void toggleWindow();
+    void toggleLights();
+    void toggleSidetone();
 
 Q_SIGNALS:
     void quitRequested();
     void deviceChanged(const QString &serial);
 
 private:
+    struct ChannelState {
+        int id = 0;
+        QString profile;
+        bool hasSpeed = false;
+        bool psu = false;
+    };
+
     struct DeviceState {
         QString serial;
         QString product;
@@ -39,16 +49,18 @@ private:
         QString speedProfile;
         QStringList userProfiles;
         QString activeUserProfile;
+        QList<ChannelState> channels;
     };
 
     void refreshDetails();
     void refreshLights();
     void setLightsOff(bool off);
     void rebuildMenu();
-    void toggleWindow();
     void setSidetone(const QString &serial, bool enabled);
     void setSpeedProfile(const QString &serial, const QString &profile);
     void setUserProfile(const QString &serial, const QString &profile);
+    void holdDevice(const QString &serial, int percent);
+    void releaseDevice(const QString &serial);
     DeviceState parseDevice(const QString &serial, const QString &product, const QJsonObject &device) const;
 
     ApiClient *m_client;

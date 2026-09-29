@@ -10,6 +10,8 @@
 #include "widgets/UiHelpers.h"
 
 #include <KColorButton>
+#include <KConfigGroup>
+#include <KSharedConfig>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFile>
@@ -251,7 +253,25 @@ SettingsPage::SettingsPage(ApiClient *client, HubI18n *i18n, QWidget *parent)
     qobject_cast<QFormLayout *>(supported->layout())->addRow(supportedLayout);
     connect(saveSupported, &QPushButton::clicked, this, &SettingsPage::saveSupported);
 
+    auto *windowCard = Ui::card(tr("Window"));
+    auto *windowForm = Ui::form(windowCard);
+    auto *startInTray = new QCheckBox(tr("Start in the system tray"), windowCard);
+    auto *startHint = new QLabel(tr("OpenLinkHub opens in the tray instead of showing its window. Closing the window still leaves it running there."), windowCard);
+    startHint->setWordWrap(true);
+    {
+        const KConfigGroup interface(KSharedConfig::openConfig(), QStringLiteral("Interface"));
+        startInTray->setChecked(interface.readEntry(QStringLiteral("StartInTray"), false));
+    }
+    connect(startInTray, &QCheckBox::toggled, this, [](bool checked) {
+        KConfigGroup interface(KSharedConfig::openConfig(), QStringLiteral("Interface"));
+        interface.writeEntry(QStringLiteral("StartInTray"), checked);
+        interface.sync();
+    });
+    windowForm->addRow(startInTray);
+    windowForm->addRow(startHint);
+
     grid->addCard(dash);
+    grid->addCard(windowCard);
     grid->addCard(backup);
     grid->addCard(scheduler);
     grid->addCard(sensors);

@@ -1,6 +1,6 @@
 # Maintainer: Ryan <ryan@freyja.pw>
 pkgname=openlinkhub-qt-git
-pkgver=0.1.0.r6.g0033929
+pkgver=0.1.0.r36.ge331aea
 pkgrel=1
 pkgdesc='Companion KDE frontend for the OpenLinkHub daemon'
 arch=('x86_64')
@@ -14,6 +14,8 @@ depends=(
   'kconfigwidgets'
   'kcoreaddons'
   'kcrash'
+  'kdbusaddons'
+  'kglobalaccel'
   'kguiaddons'
   'ki18n'
   'kiconthemes'

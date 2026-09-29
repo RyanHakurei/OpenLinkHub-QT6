@@ -52,11 +52,26 @@ inline QString powerOutText(const QJsonObject &channel)
     return {};
 }
 
+inline bool hasTemperature(const QJsonObject &channel)
+{
+    if (!Json::str(channel, "temperatureString").trimmed().isEmpty()) {
+        return true;
+    }
+    return Json::number(channel, "temperature") > 0.05;
+}
+
 inline bool hasPsuPower(const QJsonObject &channel)
 {
-    return Json::boolean(channel, "IsPSU") || Json::boolean(channel, "MainPSU")
-        || channel.contains(QLatin1String("volts")) || channel.contains(QLatin1String("powerOut"))
-        || channel.contains(QLatin1String("powerOutString"));
+    if (Json::boolean(channel, "IsPSU") || Json::boolean(channel, "MainPSU")) {
+        return true;
+    }
+    if (!Json::object(channel, "volts").isEmpty()) {
+        return true;
+    }
+    if (!Json::str(channel, "powerOutString").trimmed().isEmpty()) {
+        return true;
+    }
+    return Json::number(channel, "powerOut") > 0.0;
 }
 
 inline QLabel *valueLabel(QWidget *parent, const QString &objectName, const QString &text)

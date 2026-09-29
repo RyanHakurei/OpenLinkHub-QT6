@@ -19,8 +19,11 @@
 #include "widgets/UiHelpers.h"
 
 #include <KActionCollection>
+#include <KConfigGroup>
+#include <KGlobalAccel>
 #include <KLocalizedString>
 #include <KMessageWidget>
+#include <KSharedConfig>
 #include <KStandardAction>
 #include <KWindowEffects>
 #include <QAction>
@@ -182,12 +185,36 @@ MainWindow::MainWindow(QWidget *parent)
             }
         } else if (m_currentPage == QLatin1String("dashboard")) {
             m_dashboard->refreshTelemetry();
+        } else if (m_currentPage == QLatin1String("temperature")) {
+            m_temperatures->refreshLive();
         }
         refreshDevices();
     });
     m_timer->start();
 
     refreshAll();
+
+    const KConfigGroup interface(KSharedConfig::openConfig(), QStringLiteral("Interface"));
+    const QString lastPage = interface.readEntry(QStringLiteral("LastPage"), QStringLiteral("dashboard"));
+    if (!lastPage.isEmpty() && lastPage != QLatin1String("dashboard")) {
+        showPage(lastPage);
+        m_sidebar->selectPage(lastPage);
+    }
+}
+
+void MainWindow::present()
+{
+    if (isMinimized()) {
+        showNormal();
+    }
+    show();
+    raise();
+    activateWindow();
+}
+
+bool MainWindow::trayAvailable() const
+{
+    return m_tray && m_tray->available();
 }
 
 MainWindow::~MainWindow() = default;
@@ -242,6 +269,42 @@ void MainWindow::setupActions()
     refresh->setText(i18n("Refresh"));
     refresh->setIcon(QIcon::fromTheme(QStringLiteral("view-refresh")));
     actionCollection()->setDefaultShortcut(refresh, QKeySequence::Refresh);
+
+    auto *showHide = actionCollection()->addAction(QStringLiteral("show_hide_window"));
+    showHide->setText(i18n("Show or hide the window"));
+    showHide->setIcon(QIcon::fromTheme(QStringLiteral("window")));
+    KGlobalAccel::setGlobalShortcut(showHide, QKeySequence(Qt::META | Qt::SHIFT | Qt::Key_O));
+    connect(showHide, &QAction::triggered, this, [this]() {
+        if (m_tray && m_tray->available()) {
+            m_tray->toggleWindow();
+            return;
+        }
+        if (isVisible()) {
+            hide();
+        } else {
+            present();
+        }
+    });
+
+    auto *lights = actionCollection()->addAction(QStringLiteral("toggle_lights"));
+    lights->setText(i18n("Turn device lighting off or on"));
+    lights->setIcon(QIcon::fromTheme(QStringLiteral("lighttable")));
+    KGlobalAccel::setGlobalShortcut(lights, QKeySequence(Qt::META | Qt::SHIFT | Qt::Key_L));
+    connect(lights, &QAction::triggered, this, [this]() {
+        if (m_tray) {
+            m_tray->toggleLights();
+        }
+    });
+
+    auto *sidetone = actionCollection()->addAction(QStringLiteral("toggle_sidetone"));
+    sidetone->setText(i18n("Turn headset sidetone off or on"));
+    sidetone->setIcon(QIcon::fromTheme(QStringLiteral("audio-headphones")));
+    KGlobalAccel::setGlobalShortcut(sidetone, QKeySequence(Qt::META | Qt::SHIFT | Qt::Key_H));
+    connect(sidetone, &QAction::triggered, this, [this]() {
+        if (m_tray) {
+            m_tray->toggleSidetone();
+        }
+    });
 }
 
 void MainWindow::applyConnectionSettings()
@@ -294,6 +357,11 @@ void MainWindow::showPage(const QString &pageId)
 
     if (m_stackIndex.contains(pageId)) {
         m_stack->setCurrentIndex(m_stackIndex.value(pageId));
+    }
+    if (pageId != QLatin1String("offline")) {
+        KConfigGroup group(KSharedConfig::openConfig(), QStringLiteral("Interface"));
+        group.writeEntry(QStringLiteral("LastPage"), pageId);
+        group.sync();
     }
 }
 
@@ -351,6 +419,9 @@ void MainWindow::refreshDevices()
             m_sidebar->setDevices(sidebar);
             m_dashboard->setDeviceChoices(m_deviceChoices);
             m_tray->setDevices(m_deviceChoices);
+            if (m_sidebar->currentPageId() != m_currentPage) {
+                m_sidebar->selectPage(m_currentPage);
+            }
         });
     });
 

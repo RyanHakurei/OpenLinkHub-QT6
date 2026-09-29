@@ -2,6 +2,7 @@
 
 #include "api/ApiClient.h"
 #include "api/JsonUtil.h"
+#include "app/SpeedHold.h"
 
 #include <KConfigGroup>
 #include <KSharedConfig>
@@ -10,12 +11,16 @@
 #include <QActionGroup>
 #include <QSignalBlocker>
 #include <QApplication>
+#include <QHBoxLayout>
 #include <QIcon>
+#include <QLabel>
 #include <QMenu>
 #include <QPainter>
 #include <QPixmap>
+#include <QSlider>
 #include <QSvgRenderer>
 #include <QSystemTrayIcon>
+#include <QWidgetAction>
 
 #include <memory>
 
@@ -184,6 +189,20 @@ TrayController::DeviceState TrayController::parseDevice(const QString &serial, c
         }
     }
     state.userProfiles.sort();
+
+    const QJsonObject channels = Json::object(device, "devices");
+    for (auto it = channels.begin(); it != channels.end(); ++it) {
+        if (!it.value().isObject()) {
+            continue;
+        }
+        const QJsonObject channel = it.value().toObject();
+        ChannelState row;
+        row.id = Json::integer(channel, "channelId", it.key().toInt());
+        row.profile = Json::str(channel, "profile");
+        row.hasSpeed = Json::boolean(channel, "HasSpeed");
+        row.psu = Json::boolean(channel, "IsPSU");
+        state.channels.append(row);
+    }
     return state;
 }
 
@@ -272,19 +291,58 @@ void TrayController::rebuildMenu()
             auto *group = new QActionGroup(speeds);
             group->setExclusive(true);
             QStringList profiles = m_speedProfiles;
-            if (!device.speedProfile.isEmpty() && !profiles.contains(device.speedProfile)) {
+            if (!device.speedProfile.isEmpty() && !SpeedHold::isHoldProfile(device.speedProfile) && !profiles.contains(device.speedProfile)) {
                 profiles.prepend(device.speedProfile);
             }
             for (const QString &profile : profiles) {
+                if (SpeedHold::isHoldProfile(profile)) {
+                    continue;
+                }
                 QAction *action = speeds->addAction(profile);
                 action->setCheckable(true);
-                action->setChecked(profile == device.speedProfile);
+                action->setChecked(!SpeedHold::isHoldProfile(device.speedProfile) && profile == device.speedProfile);
                 action->setData(profile);
                 group->addAction(action);
             }
             const QString serial = device.serial;
             connect(group, &QActionGroup::triggered, this, [this, serial](QAction *action) {
                 setSpeedProfile(serial, action->data().toString());
+            });
+
+            QMenu *hold = menu->addMenu(tr("Hold"));
+            // QWidgetAction deletes this widget. A menu parent would delete it too.
+            auto *host = new QWidget;
+            auto *layout = new QHBoxLayout(host);
+            layout->setContentsMargins(12, 4, 12, 4);
+            auto *slider = new QSlider(Qt::Horizontal, host);
+            slider->setRange(30, 100);
+            int heldPercent = -1;
+            for (const ChannelState &channel : device.channels) {
+                if (!channel.hasSpeed || channel.psu || !SpeedHold::isHoldProfile(channel.profile)) {
+                    continue;
+                }
+                heldPercent = SpeedHold::storedPercent(device.serial, channel.id);
+                if (heldPercent >= 30) {
+                    break;
+                }
+            }
+            slider->setValue(heldPercent >= 30 ? heldPercent : 40);
+            auto *value = new QLabel(QStringLiteral("%1%").arg(slider->value()), host);
+            value->setMinimumWidth(value->fontMetrics().horizontalAdvance(QStringLiteral("100%")));
+            layout->addWidget(slider, 1);
+            layout->addWidget(value);
+            auto *sliderAction = new QWidgetAction(hold);
+            sliderAction->setDefaultWidget(host);
+            hold->addAction(sliderAction);
+            connect(slider, &QSlider::valueChanged, value, [value](int level) {
+                value->setText(QStringLiteral("%1%").arg(level));
+            });
+            connect(slider, &QSlider::sliderReleased, this, [this, slider, serial]() {
+                holdDevice(serial, slider->value());
+            });
+            QAction *release = hold->addAction(tr("Use profile"));
+            connect(release, &QAction::triggered, this, [this, serial]() {
+                releaseDevice(serial);
             });
         }
         if (hasProfiles) {
@@ -324,11 +382,99 @@ void TrayController::toggleWindow()
     }
     if (m_window->isVisible()) {
         m_window->hide();
+        noteWindowHidden();
         return;
     }
     m_window->show();
     m_window->raise();
     m_window->activateWindow();
+}
+
+void TrayController::toggleLights()
+{
+    if (!m_haveDashboard) {
+        refreshLights();
+        return;
+    }
+    setLightsOff(!m_lightsOff);
+}
+
+void TrayController::toggleSidetone()
+{
+    bool any = false;
+    bool anyOn = false;
+    for (const DeviceState &device : m_details) {
+        if (!device.sidetone) {
+            continue;
+        }
+        any = true;
+        if (device.sidetoneOn) {
+            anyOn = true;
+        }
+    }
+    if (!any) {
+        if (m_details.isEmpty()) {
+            refreshDetails();
+        }
+        return;
+    }
+    const bool enable = !anyOn;
+    const QList<DeviceState> devices = m_details;
+    for (const DeviceState &device : devices) {
+        if (device.sidetone) {
+            setSidetone(device.serial, enable);
+        }
+    }
+}
+
+void TrayController::holdDevice(const QString &serial, int percent)
+{
+    const DeviceState *state = nullptr;
+    for (const DeviceState &device : m_details) {
+        if (device.serial == serial) {
+            state = &device;
+            break;
+        }
+    }
+    if (!state) {
+        return;
+    }
+    QList<SpeedHold::Channel> channels;
+    for (const ChannelState &channel : state->channels) {
+        if (!channel.hasSpeed || channel.psu) {
+            continue;
+        }
+        channels.append({channel.id, channel.profile});
+    }
+    if (channels.isEmpty()) {
+        return;
+    }
+    SpeedHold::hold(m_client, serial, -1, percent, channels, [this, serial](const QString &, const QString &) {
+        Q_EMIT deviceChanged(serial);
+    });
+}
+
+void TrayController::releaseDevice(const QString &serial)
+{
+    const DeviceState *state = nullptr;
+    for (const DeviceState &device : m_details) {
+        if (device.serial == serial) {
+            state = &device;
+            break;
+        }
+    }
+    if (!state) {
+        return;
+    }
+    QList<int> channelIds;
+    for (const ChannelState &channel : state->channels) {
+        if (channel.hasSpeed && !channel.psu) {
+            channelIds.append(channel.id);
+        }
+    }
+    SpeedHold::release(m_client, serial, channelIds, [this, serial](const QString &, const QString &) {
+        Q_EMIT deviceChanged(serial);
+    });
 }
 
 void TrayController::setSidetone(const QString &serial, bool enabled)
@@ -363,7 +509,10 @@ void TrayController::setSpeedProfile(const QString &serial, const QString &profi
                        {QStringLiteral("channelId"), -1},
                        {QStringLiteral("profile"), profile},
                    },
-                   [this, serial](const QJsonObject &, const QString &) {
+                   [this, serial](const QJsonObject &json, const QString &error) {
+                       if (error.isEmpty() && Json::integer(json, "status") == 1) {
+                           SpeedHold::forgetAll(serial);
+                       }
                        Q_EMIT deviceChanged(serial);
                    });
 }

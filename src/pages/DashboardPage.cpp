@@ -2,6 +2,7 @@
 
 #include "api/ApiClient.h"
 #include "api/JsonUtil.h"
+#include "app/SpeedHold.h"
 #include "i18n/HubI18n.h"
 #include "widgets/CardGrid.h"
 #include "widgets/Telemetry.h"
@@ -162,16 +163,21 @@ void DashboardPage::addDeviceCard(const QString &serial, const QJsonObject &devi
                          Telemetry::valueLabel(box, Telemetry::id(serial, channelKey, QStringLiteral("rpm")),
                                               QStringLiteral("%1 RPM").arg(Json::integer(channel, "rpm"))));
         }
-        const QString temp = Json::str(channel, "temperatureString");
-        if (!temp.isEmpty() || Json::boolean(channel, "HasTemps")) {
+        if (Telemetry::hasTemperature(channel)) {
+            const QString temp = Json::str(channel, "temperatureString");
             form->addRow(m_i18n->t("txtTemperature", "Temperature"),
                          Telemetry::valueLabel(box, Telemetry::id(serial, channelKey, QStringLiteral("temp")),
-                                              temp.isEmpty() ? QStringLiteral("—") : temp));
+                                              temp.isEmpty() ? QString::number(Json::number(channel, "temperature"), 'f', 1) : temp));
         }
         Telemetry::addPsuFields(form, box, channel, serial, channelKey, m_i18n);
         const QString profile = Json::str(channel, "profile");
         if (!profile.isEmpty()) {
-            form->addRow(m_i18n->t("txtProfile", "Profile"), new QLabel(profile));
+            QString profileText = profile;
+            if (SpeedHold::isHoldProfile(profile)) {
+                const int percent = SpeedHold::storedPercent(serial, channelKey.toInt());
+                profileText = percent < 0 ? tr("Hold") : tr("Hold %1%").arg(percent);
+            }
+            form->addRow(m_i18n->t("txtProfile", "Profile"), new QLabel(profileText));
         }
         const QString rgb = Json::str(channel, "rgb");
         if (!rgb.isEmpty()) {
@@ -191,7 +197,8 @@ void DashboardPage::addDeviceCard(const QString &serial, const QJsonObject &devi
             continue;
         }
         const QJsonObject channel = it.value().toObject();
-        if (!Json::boolean(channel, "HasSpeed") && !Json::boolean(channel, "HasTemps") && Json::str(channel, "temperatureString").isEmpty() && Json::integer(channel, "rpm") == 0) {
+        const bool hasSpeed = Json::boolean(channel, "HasSpeed") || channel.contains(QLatin1String("rpm"));
+        if (!hasSpeed && !Telemetry::hasTemperature(channel) && !Telemetry::hasPsuPower(channel) && Json::integer(channel, "rpm") == 0) {
             continue;
         }
         sorted.append({it.key().toInt(), channel});

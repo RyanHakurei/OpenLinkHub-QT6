@@ -3,6 +3,7 @@
 #include "api/ApiClient.h"
 #include "api/JsonUtil.h"
 #include "api/LcdData.h"
+#include "app/SpeedHold.h"
 #include "i18n/HubI18n.h"
 #include "widgets/CardGrid.h"
 #include "widgets/Telemetry.h"
@@ -18,6 +19,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QPointer>
+#include <QSignalBlocker>
 #include <QSlider>
 #include <QVBoxLayout>
 #include <algorithm>
@@ -109,7 +112,16 @@ void DevicePage::setSpeed(int channelId, const QString &profile)
                        {QStringLiteral("channelId"), channelId},
                        {QStringLiteral("profile"), profile},
                    },
-                   {});
+                   [this, channelId](const QJsonObject &json, const QString &error) {
+                       if (!error.isEmpty() || Json::integer(json, "status") != 1) {
+                           return;
+                       }
+                       if (channelId < 0) {
+                           SpeedHold::forgetAll(m_serial);
+                       } else {
+                           SpeedHold::forget(m_serial, channelId);
+                       }
+                   });
 }
 
 void DevicePage::setRgb(int channelId, const QString &profile)
@@ -285,7 +297,7 @@ QWidget *DevicePage::channelCard(const QJsonObject &device, const QJsonObject &c
                                           QStringLiteral("%1 RPM").arg(Json::integer(channel, "rpm"))));
     }
 
-    if (Json::boolean(channel, "HasTemps") || !Json::str(channel, "temperatureString").isEmpty()) {
+    if (Telemetry::hasTemperature(channel)) {
         const char *tempKey = Json::boolean(channel, "AIO") ? "txtLiquidTemp" : "txtTemperature";
         form->addRow(m_i18n->t(tempKey, "Temperature"),
                      Telemetry::valueLabel(box, Telemetry::id(m_serial, channelKey, QStringLiteral("temp")),
@@ -295,12 +307,167 @@ QWidget *DevicePage::channelCard(const QJsonObject &device, const QJsonObject &c
     Telemetry::addPsuFields(form, box, channel, m_serial, channelKey, m_i18n);
 
     if (!m_speedProfiles.isEmpty() && Json::boolean(channel, "HasSpeed")) {
+        const QString activeProfile = Json::str(channel, "profile");
+        const bool holding = SpeedHold::isHoldProfile(activeProfile);
         auto *combo = new QComboBox(box);
-        fillCombo(combo, m_speedProfiles, Json::str(channel, "profile"));
-        connect(combo, &QComboBox::currentIndexChanged, this, [this, combo, channelId]() {
-            setSpeed(channelId, combo->currentData().toString());
-        });
+        fillCombo(combo, m_speedProfiles, activeProfile);
+        if (holding) {
+            const int percent = SpeedHold::storedPercent(m_serial, channelId);
+            combo->addItem(percent < 0 ? tr("Hold") : tr("Hold %1%").arg(percent), QStringLiteral("__hold__"));
+            combo->setCurrentIndex(combo->count() - 1);
+        }
         form->addRow(m_i18n->t("txtProfile", "Profile"), combo);
+
+        if (!Json::boolean(channel, "IsPSU")) {
+            int minimum = 20;
+            if (Json::boolean(channel, "TitanAIO")) {
+                minimum = 31;
+            } else if (Json::boolean(channel, "AIO") || Json::boolean(channel, "ContainsPump")) {
+                minimum = 50;
+            }
+            const int stored = SpeedHold::storedPercent(m_serial, channelId);
+            auto *slider = new QSlider(Qt::Horizontal, box);
+            slider->setRange(minimum, 100);
+            slider->setValue(holding && stored >= minimum ? stored : qMax(minimum, 40));
+            slider->setProperty("activeProfile", activeProfile);
+            auto *value = new QLabel(QStringLiteral("%1%").arg(slider->value()), box);
+            auto *release = new QPushButton(tr("Use profile"), box);
+            release->setEnabled(holding);
+            auto *row = new QWidget(box);
+            auto *rowLayout = new QHBoxLayout(row);
+            rowLayout->setContentsMargins(0, 0, 0, 0);
+            rowLayout->addWidget(slider, 1);
+            rowLayout->addWidget(value);
+            rowLayout->addWidget(release);
+            auto *holdStatus = new QLabel(box);
+            holdStatus->setWordWrap(true);
+            holdStatus->hide();
+            connect(slider, &QSlider::valueChanged, value, [value](int level) {
+                value->setText(QStringLiteral("%1%").arg(level));
+            });
+            connect(combo, &QComboBox::currentIndexChanged, this, [this, combo, slider, release, channelId]() {
+                const QString profile = combo->currentData().toString();
+                if (profile.isEmpty() || profile == QLatin1String("__hold__")) {
+                    return;
+                }
+                {
+                    const QSignalBlocker blocker(combo);
+                    for (int i = combo->count() - 1; i >= 0; --i) {
+                        if (combo->itemData(i).toString() == QLatin1String("__hold__")) {
+                            combo->removeItem(i);
+                        }
+                    }
+                    const int index = combo->findData(profile);
+                    if (index >= 0) {
+                        combo->setCurrentIndex(index);
+                    }
+                }
+                slider->setProperty("activeProfile", profile);
+                release->setEnabled(false);
+                setSpeed(channelId, profile);
+            });
+            connect(slider, &QSlider::sliderReleased, this, [this, slider, combo, release, holdStatus, channelId]() {
+                const QString active = slider->property("activeProfile").toString();
+                const bool wasHolding = release->isEnabled();
+                slider->setEnabled(false);
+                release->setEnabled(false);
+                QPointer<QSlider> sliderGuard(slider);
+                QPointer<QComboBox> comboGuard(combo);
+                QPointer<QPushButton> releaseGuard(release);
+                QPointer<QLabel> statusGuard(holdStatus);
+                SpeedHold::hold(m_client,
+                                m_serial,
+                                channelId,
+                                slider->value(),
+                                {{channelId, active}},
+                                [sliderGuard, comboGuard, releaseGuard, statusGuard, wasHolding](const QString &error, const QString &profile) {
+                                    if (sliderGuard) {
+                                        sliderGuard->setEnabled(true);
+                                        if (error.isEmpty()) {
+                                            sliderGuard->setProperty("activeProfile", profile);
+                                        }
+                                    }
+                                    if (!error.isEmpty()) {
+                                        if (statusGuard) {
+                                            statusGuard->setText(error);
+                                            statusGuard->show();
+                                        }
+                                        if (releaseGuard) {
+                                            releaseGuard->setEnabled(wasHolding);
+                                        }
+                                        return;
+                                    }
+                                    if (statusGuard) {
+                                        statusGuard->hide();
+                                    }
+                                    if (releaseGuard) {
+                                        releaseGuard->setEnabled(true);
+                                    }
+                                    if (!comboGuard || !sliderGuard) {
+                                        return;
+                                    }
+                                    const QSignalBlocker blocker(comboGuard);
+                                    for (int i = comboGuard->count() - 1; i >= 0; --i) {
+                                        if (comboGuard->itemData(i).toString() == QLatin1String("__hold__")) {
+                                            comboGuard->removeItem(i);
+                                        }
+                                    }
+                                    comboGuard->addItem(sliderGuard->tr("Hold %1%").arg(sliderGuard->value()), QStringLiteral("__hold__"));
+                                    comboGuard->setCurrentIndex(comboGuard->count() - 1);
+                                });
+            });
+            connect(release, &QPushButton::clicked, this, [this, slider, combo, release, holdStatus, channelId]() {
+                slider->setEnabled(false);
+                release->setEnabled(false);
+                QPointer<QSlider> sliderGuard(slider);
+                QPointer<QComboBox> comboGuard(combo);
+                QPointer<QPushButton> releaseGuard(release);
+                QPointer<QLabel> statusGuard(holdStatus);
+                SpeedHold::release(m_client, m_serial, {channelId}, [sliderGuard, comboGuard, releaseGuard, statusGuard](const QString &error, const QString &profile) {
+                    if (sliderGuard) {
+                        sliderGuard->setEnabled(true);
+                    }
+                    if (!error.isEmpty()) {
+                        if (statusGuard) {
+                            statusGuard->setText(error);
+                            statusGuard->show();
+                        }
+                        if (releaseGuard) {
+                            releaseGuard->setEnabled(true);
+                        }
+                        return;
+                    }
+                    if (statusGuard) {
+                        statusGuard->hide();
+                    }
+                    if (releaseGuard) {
+                        releaseGuard->setEnabled(false);
+                    }
+                    if (sliderGuard) {
+                        sliderGuard->setProperty("activeProfile", profile);
+                    }
+                    if (!comboGuard) {
+                        return;
+                    }
+                    const QSignalBlocker blocker(comboGuard);
+                    for (int i = comboGuard->count() - 1; i >= 0; --i) {
+                        if (comboGuard->itemData(i).toString() == QLatin1String("__hold__")) {
+                            comboGuard->removeItem(i);
+                        }
+                    }
+                    const int index = comboGuard->findData(profile);
+                    if (index >= 0) {
+                        comboGuard->setCurrentIndex(index);
+                    }
+                });
+            });
+            form->addRow(tr("Hold"), row);
+            form->addRow(QString(), holdStatus);
+        } else {
+            connect(combo, &QComboBox::currentIndexChanged, this, [this, combo, channelId]() {
+                setSpeed(channelId, combo->currentData().toString());
+            });
+        }
     }
 
     const QStringList rgbModes = Json::stringList(device.value(QStringLiteral("RGBModes")));

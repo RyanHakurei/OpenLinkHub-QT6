@@ -42,6 +42,8 @@ find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS
     Crash
     GuiAddons
     WindowSystem
+    DBusAddons
+    GlobalAccel
 )
 
 ecm_setup_version(PROJECT
@@ -73,6 +75,7 @@ add_executable(openlinkhub-qt
     src/app/SensorService.cpp
     src/app/DaemonService.cpp
     src/app/TrayController.cpp
+    src/app/SpeedHold.cpp
 )
 
 target_include_directories(openlinkhub-qt PRIVATE
@@ -99,6 +102,8 @@ target_link_libraries(openlinkhub-qt
     KF6::Crash
     KF6::GuiAddons
     KF6::WindowSystem
+    KF6::DBusAddons
+    KF6::GlobalAccel
 )
 
 target_sources(openlinkhub-qt PRIVATE src/openlinkhub-qt.qrc)

@@ -2,8 +2,11 @@
 #include "openlinkhub-qt-version.h"
 
 #include <KAboutData>
+#include <KConfigGroup>
 #include <KCrash>
+#include <KDBusService>
 #include <KLocalizedString>
+#include <KSharedConfig>
 #include <KIconTheme>
 
 #include <QApplication>
@@ -52,7 +55,18 @@ int main(int argc, char **argv)
     parser.process(app);
     about.processCommandLine(&parser);
 
+    // A second launch asks this process to show its window, then exits.
+    KDBusService service(KDBusService::Unique | KDBusService::NoExitOnFailure);
+
     MainWindow window;
-    window.show();
+    QObject::connect(&service, &KDBusService::activateRequested, &window, [&window](const QStringList &, const QString &) {
+        window.present();
+    });
+
+    const KConfigGroup interface(KSharedConfig::openConfig(), QStringLiteral("Interface"));
+    const bool startInTray = interface.readEntry(QStringLiteral("StartInTray"), false);
+    if (!startInTray || !window.trayAvailable()) {
+        window.show();
+    }
     return app.exec();
 }

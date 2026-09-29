@@ -1,5 +1,6 @@
 #include "widgets/FanCurveChart.h"
 
+#include <QFontMetrics>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
@@ -41,9 +42,46 @@ void FanCurveChart::setPoints(const QVector<QPointF> &points)
     update();
 }
 
+void FanCurveChart::setLiveTemperature(double celsius)
+{
+    m_liveTemperature = celsius;
+    m_hasLive = true;
+    update();
+}
+
+void FanCurveChart::clearLiveTemperature()
+{
+    m_hasLive = false;
+    update();
+}
+
 QVector<QPointF> FanCurveChart::points() const
 {
     return m_points;
+}
+
+double FanCurveChart::speedAt(double temperature) const
+{
+    if (m_points.isEmpty()) {
+        return 0;
+    }
+    if (temperature <= m_points.first().x()) {
+        return m_points.first().y();
+    }
+    if (temperature >= m_points.last().x()) {
+        return m_points.last().y();
+    }
+    for (int i = 0; i + 1 < m_points.size(); ++i) {
+        const QPointF left = m_points.at(i);
+        const QPointF right = m_points.at(i + 1);
+        const double span = right.x() - left.x();
+        if (span <= 0.0 || temperature < left.x() || temperature > right.x()) {
+            continue;
+        }
+        const double ratio = (temperature - left.x()) / span;
+        return left.y() + ratio * (right.y() - left.y());
+    }
+    return m_points.last().y();
 }
 
 QSize FanCurveChart::sizeHint() const
@@ -143,6 +181,31 @@ void FanCurveChart::paintEvent(QPaintEvent *)
     for (const QPointF &point : m_points) {
         painter.drawEllipse(toPixel(point), 5, 5);
     }
+
+    if (!m_hasLive) {
+        return;
+    }
+    const double shown = qBound(0.0, m_liveTemperature, static_cast<double>(m_maxTemperature));
+    const double speed = speedAt(m_liveTemperature);
+    const QPointF at = toPixel(QPointF(shown, speed));
+    painter.setBrush(Qt::NoBrush);
+    painter.setPen(QPen(accent, 1, Qt::DashLine));
+    painter.drawLine(QPointF(at.x(), plot.top()), QPointF(at.x(), plot.bottom()));
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(palette.color(QPalette::WindowText));
+    painter.drawEllipse(at, 4, 4);
+
+    const QString label = tr("%1 °C · %2%").arg(QString::number(m_liveTemperature, 'f', 1), QString::number(qRound(speed)));
+    const QFontMetrics metrics(painter.font());
+    const int textWidth = metrics.horizontalAdvance(label);
+    const int textHeight = metrics.height();
+    qreal textX = at.x() + 8;
+    const qreal textY = plot.top() + 4;
+    if (textX + textWidth > plot.right()) {
+        textX = at.x() - textWidth - 8;
+    }
+    painter.setPen(palette.color(QPalette::WindowText));
+    painter.drawText(QRectF(textX, textY, textWidth + 2, textHeight), Qt::AlignLeft | Qt::AlignVCenter, label);
 }
 
 void FanCurveChart::mousePressEvent(QMouseEvent *event)

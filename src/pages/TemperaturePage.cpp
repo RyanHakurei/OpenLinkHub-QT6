@@ -2,6 +2,7 @@
 
 #include "api/ApiClient.h"
 #include "api/JsonUtil.h"
+#include "app/SpeedHold.h"
 #include "i18n/HubI18n.h"
 #include "widgets/Card.h"
 #include "widgets/FanCurveChart.h"
@@ -20,6 +21,8 @@
 #include <QListWidgetItem>
 #include <QPushButton>
 #include <QVBoxLayout>
+
+#include <memory>
 
 namespace {
 
@@ -153,7 +156,7 @@ void TemperaturePage::reload()
         const QJsonObject data = Json::object(json, "data");
         for (auto it = data.begin(); it != data.end(); ++it) {
             const QJsonObject profile = Json::object(it.value());
-            if (Json::boolean(profile, "Hidden")) {
+            if (Json::boolean(profile, "Hidden") || SpeedHold::isHoldProfile(it.key())) {
                 continue;
             }
             m_visible.append(it.key());
@@ -186,6 +189,12 @@ void TemperaturePage::reload()
 void TemperaturePage::showProfile(const QString &name)
 {
     m_current = name;
+    if (m_pump) {
+        m_pump->clearLiveTemperature();
+    }
+    if (m_fans) {
+        m_fans->clearLiveTemperature();
+    }
     m_client->get(QStringLiteral("/api/temperatures/graph/") + name, [this, name](const QJsonObject &json, const QString &error) {
         if (!error.isEmpty() || m_current != name) {
             return;
@@ -193,12 +202,89 @@ void TemperaturePage::showProfile(const QString &name)
         const QJsonObject data = Json::object(json, "data");
         const QJsonObject pump = Json::object(data, "0");
         const QJsonObject fans = Json::object(data, "1");
-        const int sensor = Json::integer(pump, "sensor", Json::integer(fans, "sensor"));
-        const int maxTemperature = sensor == 2 ? 60 : 100;
+        m_sensorType = Json::integer(pump, "sensor", Json::integer(fans, "sensor"));
+        const int maxTemperature = m_sensorType == 2 ? 60 : 100;
         m_pump->setMaxTemperature(maxTemperature);
         m_fans->setMaxTemperature(maxTemperature);
         m_pump->setPoints(readPoints(pump, maxTemperature));
         m_fans->setPoints(readPoints(fans, maxTemperature));
+        refreshLive();
+    });
+}
+
+void TemperaturePage::applyLive(double celsius)
+{
+    if (m_pump) {
+        m_pump->setLiveTemperature(celsius);
+    }
+    if (m_fans) {
+        m_fans->setLiveTemperature(celsius);
+    }
+}
+
+void TemperaturePage::refreshLive()
+{
+    if (m_current.isEmpty()) {
+        return;
+    }
+    const int generation = ++m_liveGeneration;
+    // 2 is the liquid sensor. 10 is the power supply's own temperature.
+    if (m_sensorType == 2 || m_sensorType == 10) {
+        const bool powerSupply = m_sensorType == 10;
+        m_client->get(QStringLiteral("/api/devices/"), [this, generation, powerSupply](const QJsonObject &json, const QString &error) {
+            if (generation != m_liveGeneration || !error.isEmpty()) {
+                return;
+            }
+            QStringList serials;
+            const QJsonObject devices = Json::object(json, "devices");
+            for (auto it = devices.begin(); it != devices.end(); ++it) {
+                const QJsonObject wrapper = Json::object(it.value());
+                if (Json::boolean(wrapper, "Hidden")) {
+                    continue;
+                }
+                const QString serial = Json::strAny(wrapper, {QStringLiteral("Serial"), QStringLiteral("serial")}, it.key());
+                if (!serial.isEmpty() && serial != QLatin1String("cluster")) {
+                    serials.append(serial);
+                }
+            }
+            if (serials.isEmpty()) {
+                return;
+            }
+            auto pending = std::make_shared<int>(serials.size());
+            auto found = std::make_shared<double>(-1);
+            for (const QString &serial : serials) {
+                m_client->get(QStringLiteral("/api/devices/") + serial, [this, generation, powerSupply, pending, found](const QJsonObject &deviceJson, const QString &deviceError) {
+                    if (generation == m_liveGeneration && deviceError.isEmpty()) {
+                        const QJsonObject channels = Json::object(Json::object(deviceJson, "device"), "devices");
+                        for (auto it = channels.begin(); it != channels.end(); ++it) {
+                            const QJsonObject channel = Json::object(it.value());
+                            const bool match = powerSupply
+                                ? Json::boolean(channel, "IsPSU")
+                                : (Json::boolean(channel, "AIO") || Json::boolean(channel, "ContainsPump"));
+                            if (!match) {
+                                continue;
+                            }
+                            const double temperature = Json::number(channel, "temperature");
+                            if (temperature > 0) {
+                                *found = temperature;
+                            }
+                        }
+                    }
+                    if (--(*pending) == 0 && generation == m_liveGeneration && *found >= 0) {
+                        applyLive(*found);
+                    }
+                });
+            }
+        });
+        return;
+    }
+
+    const QString path = m_sensorType == 1 ? QStringLiteral("/api/gpuTemp/clean") : QStringLiteral("/api/cpuTemp/clean");
+    m_client->get(path, [this, generation](const QJsonObject &json, const QString &error) {
+        if (generation != m_liveGeneration || !error.isEmpty() || !json.contains(QLatin1String("data"))) {
+            return;
+        }
+        applyLive(json.value(QLatin1String("data")).toDouble());
     });
 }
 
