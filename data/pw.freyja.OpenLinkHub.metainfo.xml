@@ -25,6 +25,24 @@
     </p>
   </description>
   <url type="homepage">https://github.com/RyanHakurei/OpenLinkHub-QT6</url>
+  <releases>
+    <release version="1.0.0" date="2026-09-29">
+      <description>
+        <p>First release of the KDE app for the OpenLinkHub service.</p>
+        <ul>
+          <li>Dashboard for temperatures, fans, pumps, and power supplies</li>
+          <li>Lighting, LCD images, fan profiles, headset sidetone, and equalizer</li>
+          <li>RGB editor, RGB cluster, and macros</li>
+          <li>Fan curves with the current temperature marked on the graph</li>
+          <li>Hold a fan or pump at a set speed, then return to its saved profile</li>
+          <li>System tray, including after the window is closed, with an option to start there</li>
+          <li>One window, reopened on the last page, with a sidebar that collapses to icons</li>
+          <li>Shortcuts for the window, lighting, and headset sidetone</li>
+          <li>System Monitor sensors for fans, the pump, and the power supply</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
   <launchable type="desktop-id">pw.freyja.OpenLinkHub.desktop</launchable>
   <provides>
     <binary>openlinkhub-qt</binary>

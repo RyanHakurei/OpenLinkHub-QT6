@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(openlinkhub-qt VERSION 0.1.0 LANGUAGES CXX)
+project(openlinkhub-qt VERSION 1.0.0 LANGUAGES CXX)
 
 set(QT_MIN_VERSION "6.6.0")
 set(KF_MIN_VERSION "6.0.0")
